@@ -122,3 +122,101 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ========================================
+   공통 스타일 유틸리티 (CHA-11)
+   ======================================== */
+
+@layer utilities {
+  /* 부드러운 애니메이션 */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  /* 모바일 최적화 레이아웃 */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* 금액 표시 스타일 */
+  .amount-positive {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  .amount-negative {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  .amount-text {
+    @apply font-semibold tabular-nums;
+  }
+
+  /* 카드 스타일 변형 */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  /* 스크롤 스타일 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 글래스모피즘 효과 */
+  .glass {
+    @apply bg-background/80 backdrop-blur-md border border-border/50;
+  }
+
+  /* 터치 피드백 */
+  .touch-feedback {
+    @apply active:opacity-70 transition-opacity duration-100;
+  }
+}
+
+/* 커스텀 애니메이션 정의 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
