@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
@@ -17,16 +18,9 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-2xl space-y-6">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">일억모으기</h1>
-            <p className="text-sm text-muted-foreground">
-              {session.user.name}님 환영합니다
-            </p>
-          </div>
+    <div className="container mx-auto p-4 space-y-6">
+      <PageHeader
+        action={
           <form
             action={async () => {
               "use server";
@@ -37,45 +31,21 @@ export default async function HomePage() {
               로그아웃
             </Button>
           </form>
-        </div>
+        }
+      />
 
-        {/* 사용자 정보 카드 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>계정 정보</CardTitle>
-            <CardDescription>현재 로그인된 계정입니다</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              {session.user.image && (
-                <img
-                  src={session.user.image}
-                  alt={session.user.name || "User"}
-                  className="h-12 w-12 rounded-full"
-                />
-              )}
-              <div>
-                <p className="font-medium">{session.user.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {session.user.email}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 상태 카드 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>시스템 상태</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm">✅ 로그인 완료</p>
-            <p className="text-sm">✅ 세션 유지 중</p>
-            <p className="text-sm">✅ DB 연결 확인</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* 캘린더 영역 (추후 구현) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>지출 캘린더</CardTitle>
+          <CardDescription>{session.user.name}님의 지출 내역</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">
+            캘린더 뷰는 추후 구현 예정입니다.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
