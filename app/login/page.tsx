@@ -1,27 +1,21 @@
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-3xl">
-              💰
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold">일억모으기</CardTitle>
-          <CardDescription>소셜 계정으로 간편하게 시작하세요</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <div className="flex min-h-screen flex-col bg-background p-4">
+      <div className="flex flex-1 flex-col justify-center">
+        {/* 헤더 */}
+        <div className="mb-12 text-center">
+          <div className="mb-3 text-4xl">💰</div>
+          <h1 className="mb-2 text-2xl font-semibold">일억모으기</h1>
+          <p className="text-sm text-muted-foreground">
+            소셜 계정으로 시작하세요
+          </p>
+        </div>
+
+        {/* 로그인 버튼들 */}
+        <div className="space-y-3">
           <form
             action={async () => {
               "use server";
@@ -32,7 +26,7 @@ export default function LoginPage() {
               type="submit"
               variant="outline"
               className="w-full"
-              size="lg"
+              size="default"
             >
               <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
                 <path
@@ -65,7 +59,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               className="w-full bg-[#FEE500] text-[#000000] hover:bg-[#FEE500]/90"
-              size="lg"
+              size="default"
             >
               <svg
                 className="mr-2 h-5 w-5"
@@ -77,37 +71,23 @@ export default function LoginPage() {
               카카오로 계속하기
             </Button>
           </form>
+        </div>
+      </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                안전한 로그인
-              </span>
-            </div>
-          </div>
-
-          <p className="text-center text-xs text-muted-foreground">
-            로그인하면{" "}
-            <a
-              href="#"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              서비스 약관
-            </a>{" "}
-            및{" "}
-            <a
-              href="#"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              개인정보 처리방침
-            </a>
-            에 동의하게 됩니다.
-          </p>
-        </CardContent>
-      </Card>
+      {/* 하단 약관 */}
+      <div className="mt-8 text-center">
+        <p className="text-xs text-muted-foreground">
+          로그인하면{" "}
+          <a href="#" className="underline">
+            서비스 약관
+          </a>{" "}
+          및{" "}
+          <a href="#" className="underline">
+            개인정보 처리방침
+          </a>
+          에 동의하게 됩니다.
+        </p>
+      </div>
     </div>
   );
 }
