@@ -8,6 +8,7 @@ import {
   boolean,
   date,
   pgEnum,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ========================================
@@ -49,11 +50,17 @@ export const sessions = pgTable("sessions", {
   expires: timestamp("expires").notNull(),
 });
 
-export const verificationTokens = pgTable("verification_tokens", {
-  identifier: text("identifier").notNull(),
-  token: text("token").notNull().primaryKey(),
-  expires: timestamp("expires").notNull(),
-});
+export const verificationTokens = pgTable(
+  "verification_tokens",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires").notNull(),
+  },
+  (vt) => ({
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  }),
+);
 
 // ========================================
 // 앱 관련 테이블
