@@ -11,6 +11,7 @@ import {
 import { CalendarGrid } from "./calendar-grid";
 import { getTransactionsByMonth } from "@/lib/api/transactions";
 import type { TransactionSummary } from "@/lib/api/types";
+import type { Category } from "@/lib/api/categories";
 import { CalendarBottomSheet } from "./calendar-bottom-sheet";
 
 interface MonthSlide {
@@ -20,9 +21,15 @@ interface MonthSlide {
 
 interface CalendarProps {
   initialTransactions: TransactionSummary[];
+  expenseCategories: Category[];
+  incomeCategories: Category[];
 }
 
-export function Calendar({ initialTransactions }: CalendarProps) {
+export function Calendar({
+  initialTransactions,
+  expenseCategories,
+  incomeCategories,
+}: CalendarProps) {
   const [api, setApi] = useState<CarouselApi>();
   const skipScrollRef = useRef(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -158,6 +165,8 @@ export function Calendar({ initialTransactions }: CalendarProps) {
         open={isBottomSheetOpen}
         onOpenChange={setIsBottomSheetOpen}
         selectedDate={selectedDate}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
       />
     </>
   );

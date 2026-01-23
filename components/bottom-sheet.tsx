@@ -44,6 +44,7 @@ export function BottomSheet({
         {(title || description || showCloseButton) && (
           <DrawerHeader className="relative">
             <div className="flex items-start justify-between">
+              <div className="h-8 w-8"></div>
               <div className="flex-1">
                 {title && <DrawerTitle>{title}</DrawerTitle>}
                 {description && (

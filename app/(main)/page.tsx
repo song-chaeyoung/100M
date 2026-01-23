@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { redirect } from "next/navigation";
 import { Calendar } from "@/components/calendar/calendar";
 import { getTransactionsByMonth } from "@/app/actions/transactions";
+import { getCategories } from "@/app/actions/categories";
 import dayjs from "dayjs";
 
 export default async function HomePage() {
@@ -14,7 +15,14 @@ export default async function HomePage() {
   }
 
   const currentMonth = dayjs().format("YYYY-MM");
-  const initialTransactions = await getTransactionsByMonth(currentMonth);
+
+  // 초기 데이터 병렬 fetch
+  const [initialTransactions, expenseCategories, incomeCategories] =
+    await Promise.all([
+      getTransactionsByMonth(currentMonth),
+      getCategories("EXPENSE"),
+      getCategories("INCOME"),
+    ]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -35,7 +43,11 @@ export default async function HomePage() {
       <div className="text-lg font-semibold">
         {session.user.name}님의 수입/지출 내역
       </div>
-      <Calendar initialTransactions={initialTransactions} />
+      <Calendar
+        initialTransactions={initialTransactions}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+      />
     </div>
   );
 }

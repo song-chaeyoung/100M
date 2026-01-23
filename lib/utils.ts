@@ -22,3 +22,13 @@ export function formatCurrency(
   const sign = showSign && amount > 0 ? "+" : amount < 0 ? "-" : "";
   return `${sign}${formatted}원`;
 }
+
+/**
+ * 입력 중에 숫자를 콤마로 포맷
+ * @param value 입력값
+ * @returns 콤마로 포맷된 문자열
+ */
+export const formatAmount = (value: string) => {
+  const number = value.replace(/[^0-9]/g, "");
+  return number.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
