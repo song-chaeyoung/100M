@@ -21,6 +21,11 @@ import {
 import { cn, formatAmount, formatCurrency } from "@/lib/utils";
 import { getCategories, type Category } from "@/lib/api/categories";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+} from "@/app/actions/transactions";
 
 // Zod 스키마 정의
 const transactionFormSchema = z.object({
@@ -107,27 +112,43 @@ export function TransactionFormSheet({
         memo: data.memo || "",
       };
 
-      console.log("Submit data:", submitData);
+      let result;
+      if (mode === "create") {
+        result = await createTransaction(submitData);
+      } else if (initialData?.id) {
+        result = await updateTransaction(initialData.id, submitData);
+      }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      onOpenChange(false);
+      if (result?.success) {
+        onOpenChange(false);
+        // TODO: 성공 토스트 메시지 추가
+      } else {
+        // TODO: 에러 토스트 메시지 추가
+        console.error("Failed to save transaction:", result?.error);
+      }
     } catch (error) {
       console.error("Failed to save transaction:", error);
+      // TODO: 에러 토스트 메시지 추가
     }
   };
 
   const handleDelete = async () => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!initialData?.id) return;
 
     try {
-      console.log("Delete transaction:", initialData?.id);
+      const result = await deleteTransaction(initialData.id);
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      onOpenChange(false);
+      if (result.success) {
+        onOpenChange(false);
+        // TODO: 성공 토스트 메시지 추가
+      } else {
+        // TODO: 에러 토스트 메시지 추가
+        console.error("Failed to delete transaction:", result.error);
+      }
     } catch (error) {
       console.error("Failed to delete transaction:", error);
+      // TODO: 에러 토스트 메시지 추가
     }
   };
 

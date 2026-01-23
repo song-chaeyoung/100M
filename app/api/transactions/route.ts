@@ -68,3 +68,162 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// POST /api/transactions - 거래 생성
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { type, amount, method, date, categoryId, memo } = body;
+
+    // 유효성 검사
+    if (!type || !amount || !method || !date || !categoryId) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    // DB에 삽입
+    const result = await db
+      .insert(transactions)
+      .values({
+        userId: session.user.id,
+        type,
+        amount: amount.toString(),
+        method,
+        date,
+        categoryId,
+        memo: memo || null,
+        isFixed: false,
+      })
+      .returning();
+
+    return NextResponse.json(result[0], { status: 201 });
+  } catch (error) {
+    console.error("Error creating transaction:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}
+
+// PATCH /api/transactions?id=123 - 거래 수정
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Transaction ID required" },
+        { status: 400 },
+      );
+    }
+
+    const body = await request.json();
+    const { type, amount, method, date, categoryId, memo } = body;
+
+    // 본인의 거래인지 확인
+    const existing = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.id, parseInt(id)),
+          eq(transactions.userId, session.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!existing[0]) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 },
+      );
+    }
+
+    // 업데이트
+    const result = await db
+      .update(transactions)
+      .set({
+        type,
+        amount: amount.toString(),
+        method,
+        date,
+        categoryId,
+        memo: memo || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(transactions.id, parseInt(id)))
+      .returning();
+
+    return NextResponse.json(result[0]);
+  } catch (error) {
+    console.error("Error updating transaction:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE /api/transactions?id=123 - 거래 삭제
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Transaction ID required" },
+        { status: 400 },
+      );
+    }
+
+    // 본인의 거래인지 확인
+    const existing = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.id, parseInt(id)),
+          eq(transactions.userId, session.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!existing[0]) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 },
+      );
+    }
+
+    // 삭제
+    await db.delete(transactions).where(eq(transactions.id, parseInt(id)));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}

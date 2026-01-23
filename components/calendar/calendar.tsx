@@ -60,6 +60,18 @@ export function Calendar({
     }
   }, []);
 
+  // 현재 월 데이터 다시 로드하는 함수
+  const refetchCurrentMonth = useCallback(async () => {
+    if (!api) return;
+
+    const currentIndex = api.selectedScrollSnap();
+    const currentSlide = slides[currentIndex];
+
+    if (currentSlide) {
+      await loadMonthData(currentSlide.month, currentIndex);
+    }
+  }, [api, slides, loadMonthData]);
+
   useEffect(() => {
     if (!api) return;
 
@@ -167,6 +179,7 @@ export function Calendar({
         selectedDate={selectedDate}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        onTransactionChange={refetchCurrentMonth}
       />
     </>
   );

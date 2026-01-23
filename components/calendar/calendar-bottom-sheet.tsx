@@ -14,6 +14,7 @@ interface CalendarBottomSheetProps {
   selectedDate: string | null;
   expenseCategories: Category[];
   incomeCategories: Category[];
+  onTransactionChange?: () => void | Promise<void>;
 }
 
 export function CalendarBottomSheet({
@@ -22,6 +23,7 @@ export function CalendarBottomSheet({
   selectedDate,
   expenseCategories,
   incomeCategories,
+  onTransactionChange,
 }: CalendarBottomSheetProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -29,6 +31,15 @@ export function CalendarBottomSheet({
 
   const handleAddTransaction = () => {
     setIsFormOpen(true);
+  };
+
+  const handleFormClose = async (open: boolean) => {
+    setIsFormOpen(open);
+
+    // 폼이 닫힐 때 데이터 갱신
+    if (!open && onTransactionChange) {
+      await onTransactionChange();
+    }
   };
 
   return (
@@ -57,7 +68,7 @@ export function CalendarBottomSheet({
 
       <TransactionFormSheet
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
+        onOpenChange={handleFormClose}
         selectedDate={selectedDate}
         mode="create"
         expenseCategories={expenseCategories}
