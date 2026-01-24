@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import { Plus } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { TransactionFormSheet } from "./transaction-form-sheet";
+import { getTransactionsByDate } from "@/app/actions/transactions";
 import type { Category } from "@/lib/api/categories";
 
 interface CalendarBottomSheetProps {
@@ -26,6 +27,27 @@ export function CalendarBottomSheet({
   onTransactionChange,
 }: CalendarBottomSheetProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [transactions, setTransactions] = useState<any[]>([]); // TODO: Type definition
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (open && selectedDate) {
+        setIsLoading(true);
+        try {
+          const data = await getTransactionsByDate(selectedDate);
+          setTransactions(data);
+        } catch (error) {
+          console.error("Failed to fetch transactions:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchTransactions();
+  }, [open, selectedDate]);
 
   if (!selectedDate) return null;
 
@@ -39,6 +61,18 @@ export function CalendarBottomSheet({
     // 폼이 닫힐 때 데이터 갱신
     if (!open && onTransactionChange) {
       await onTransactionChange();
+      // 현재 보고 있는 날짜의 거래 내역도 갱신
+      if (selectedDate) {
+        setIsLoading(true);
+        try {
+          const data = await getTransactionsByDate(selectedDate);
+          setTransactions(data);
+        } catch (error) {
+          console.error("Failed to fetch transactions:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
   };
 
@@ -53,9 +87,21 @@ export function CalendarBottomSheet({
         <div className="space-y-4">
           {/* 거래 내역 리스트 영역 */}
           <div className="min-h-[200px]">
-            <p className="text-center text-muted-foreground py-8">
-              거래 내역이 없습니다.
-            </p>
+            {isLoading ? (
+              <p className="text-center text-muted-foreground py-8">
+                Loading...
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {/* TODO: 거래 내역 렌더링 구현 */}
+                <pre className="text-xs hidden">
+                  {JSON.stringify(transactions, null, 2)}
+                </pre>
+                <p className="text-center text-muted-foreground py-8">
+                  거래 내역이 없습니다.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 추가 버튼 */}

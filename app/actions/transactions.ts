@@ -78,7 +78,7 @@ export async function getTransactionsByDate(date: string) {
       .join("; ");
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/transactions?date=${date}`,
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/transactions/daily?date=${date}`,
       {
         method: "GET",
         headers: {
