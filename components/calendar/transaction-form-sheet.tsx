@@ -18,14 +18,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn, formatAmount, formatCurrency } from "@/lib/utils";
-import { getCategories, type Category } from "@/lib/api/categories";
-import { Skeleton } from "@/components/ui/skeleton";
+import { cn, formatAmount } from "@/lib/utils";
+import { type Category } from "@/lib/api/categories";
 import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
 } from "@/app/actions/transactions";
+import { toast } from "sonner";
 
 // Zod 스키마 정의
 const transactionFormSchema = z.object({
@@ -71,24 +71,40 @@ export function TransactionFormSheet({
   // react-hook-form 설정
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
-    defaultValues: initialData
-      ? {
+    defaultValues: {
+      type: "EXPENSE",
+      amount: "",
+      method: "CARD",
+      categoryId: 0,
+      memo: "",
+      date: new Date(selectedDate),
+    },
+  });
+
+  // 폼 데이터 동기화
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        form.reset({
           type: initialData.type,
-          amount: initialData.amount,
+          amount: formatAmount(Number(initialData.amount).toFixed(0)),
           method: initialData.method,
           categoryId: initialData.categoryId,
           memo: initialData.memo || "",
           date: initialData.date,
-        }
-      : {
-          type: "EXPENSE" as const,
+        });
+      } else {
+        form.reset({
+          type: "EXPENSE",
           amount: "",
-          method: "CARD" as const,
+          method: "CARD",
           categoryId: 0,
           memo: "",
           date: new Date(selectedDate),
-        },
-  });
+        });
+      }
+    }
+  }, [open, initialData, selectedDate, form]);
 
   const { control, handleSubmit, watch, formState } = form;
   const { isDirty, isSubmitting } = formState;
@@ -121,14 +137,18 @@ export function TransactionFormSheet({
 
       if (result?.success) {
         onOpenChange(false);
-        // TODO: 성공 토스트 메시지 추가
+        toast.success(
+          mode === "create"
+            ? "거래 내역이 추가되었습니다."
+            : "거래 내역이 수정되었습니다.",
+        );
       } else {
-        // TODO: 에러 토스트 메시지 추가
+        toast.error("저장에 실패했습니다.");
         console.error("Failed to save transaction:", result?.error);
       }
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      // TODO: 에러 토스트 메시지 추가
+      toast.error("오류가 발생했습니다.");
     }
   };
 
@@ -141,14 +161,14 @@ export function TransactionFormSheet({
 
       if (result.success) {
         onOpenChange(false);
-        // TODO: 성공 토스트 메시지 추가
+        toast.success("거래 내역이 삭제되었습니다.");
       } else {
-        // TODO: 에러 토스트 메시지 추가
+        toast.error("삭제에 실패했습니다.");
         console.error("Failed to delete transaction:", result.error);
       }
     } catch (error) {
       console.error("Failed to delete transaction:", error);
-      // TODO: 에러 토스트 메시지 추가
+      toast.error("오류가 발생했습니다.");
     }
   };
 

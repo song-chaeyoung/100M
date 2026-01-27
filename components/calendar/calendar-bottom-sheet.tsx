@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import dayjs from "dayjs";
 import { Plus } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { TransactionFormSheet } from "./transaction-form-sheet";
 import { getTransactionsByDate } from "@/app/actions/transactions";
 import type { Category } from "@/lib/api/categories";
+import type { Transaction } from "@/lib/api/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CalendarBottomSheetProps {
   open: boolean;
@@ -27,8 +29,9 @@ export function CalendarBottomSheet({
   onTransactionChange,
 }: CalendarBottomSheetProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [transactions, setTransactions] = useState<any[]>([]); // TODO: Type definition
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -52,6 +55,12 @@ export function CalendarBottomSheet({
   if (!selectedDate) return null;
 
   const handleAddTransaction = () => {
+    setSelectedTransaction(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
     setIsFormOpen(true);
   };
 
@@ -82,25 +91,74 @@ export function CalendarBottomSheet({
         open={open}
         onOpenChange={onOpenChange}
         title={dayjs(selectedDate).format("YYYY년 M월 D일")}
-        description="거래 내역"
+        // description="거래 내역"
       >
         <div className="space-y-4">
           {/* 거래 내역 리스트 영역 */}
-          <div className="min-h-[200px]">
+          <div className="">
             {isLoading ? (
-              <p className="text-center text-muted-foreground py-8">
-                Loading...
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {/* TODO: 거래 내역 렌더링 구현 */}
-                <pre className="text-xs hidden">
-                  {JSON.stringify(transactions, null, 2)}
-                </pre>
-                <p className="text-center text-muted-foreground py-8">
-                  거래 내역이 없습니다.
-                </p>
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 rounded-lg border shadow-sm"
+                  >
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-[120px]" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-3 w-4 rounded-full" />
+                        <Skeleton className="h-3 w-[60px]" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-[80px]" />
+                  </div>
+                ))}
               </div>
+            ) : transactions.length > 0 ? (
+              <div className="space-y-3">
+                {transactions.map((transaction) => {
+                  const category = [
+                    ...expenseCategories,
+                    ...incomeCategories,
+                  ].find((c) => c.id === transaction.categoryId);
+
+                  return (
+                    <div
+                      key={transaction.id}
+                      onClick={() => handleEditTransaction(transaction)}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium">
+                          {transaction.memo || category?.name || "기타"}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px]">
+                            {category?.icon || "📝"}
+                          </span>
+                          <span>{category?.name || "카테고리 없음"}</span>
+                          <span>•</span>
+                          <span>
+                            {transaction.method === "CARD" ? "카드" : "현금"}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-sm font-semibold ${
+                          transaction.type === "INCOME"
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        {transaction.type === "INCOME" ? "+" : "-"}
+                        {parseInt(transaction.amount).toLocaleString()}원
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Fragment></Fragment>
             )}
           </div>
 
@@ -116,7 +174,20 @@ export function CalendarBottomSheet({
         open={isFormOpen}
         onOpenChange={handleFormClose}
         selectedDate={selectedDate}
-        mode="create"
+        mode={selectedTransaction ? "edit" : "create"}
+        initialData={
+          selectedTransaction
+            ? {
+                id: selectedTransaction.id,
+                type: selectedTransaction.type,
+                amount: selectedTransaction.amount,
+                method: selectedTransaction.method,
+                categoryId: selectedTransaction.categoryId,
+                memo: selectedTransaction.memo || "",
+                date: new Date(selectedTransaction.date),
+              }
+            : undefined
+        }
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
       />

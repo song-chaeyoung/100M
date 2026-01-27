@@ -55,8 +55,10 @@ export function Calendar({
         newSlides[index] = { month, transactions: data };
         return newSlides;
       });
+      return data;
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
+      return [];
     }
   }, []);
 
@@ -83,9 +85,11 @@ export function Calendar({
 
       const index = api.selectedScrollSnap();
       const selectedSlide = slides[index];
+      let currentTransactions = selectedSlide.transactions;
 
       if (selectedSlide.transactions.length === 0) {
-        await loadMonthData(selectedSlide.month, index);
+        currentTransactions =
+          (await loadMonthData(selectedSlide.month, index)) || [];
       }
 
       if (index === 0) {
@@ -97,7 +101,7 @@ export function Calendar({
           { month: newPrevMonth, transactions: [] },
           {
             month: selectedSlide.month,
-            transactions: selectedSlide.transactions,
+            transactions: currentTransactions,
           },
           {
             month: dayjs(selectedSlide.month).add(1, "month").format("YYYY-MM"),
@@ -121,7 +125,7 @@ export function Calendar({
           },
           {
             month: selectedSlide.month,
-            transactions: selectedSlide.transactions,
+            transactions: currentTransactions,
           },
           { month: newNextMonth, transactions: [] },
         ]);
