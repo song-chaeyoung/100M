@@ -100,17 +100,40 @@ async function seed() {
         isDefault: true,
       },
       {
-        name: "저축",
-        icon: "🏦",
+        name: "기타지출",
+        icon: "📊",
         type: "EXPENSE" as const,
         order: 10,
         isDefault: true,
       },
+
+      // 저축 카테고리
       {
-        name: "기타지출",
-        icon: "📊",
-        type: "EXPENSE" as const,
-        order: 11,
+        name: "적금",
+        icon: "🏦",
+        type: "SAVING" as const,
+        order: 1,
+        isDefault: true,
+      },
+      {
+        name: "예금",
+        icon: "💰",
+        type: "SAVING" as const,
+        order: 2,
+        isDefault: true,
+      },
+      {
+        name: "투자",
+        icon: "📈",
+        type: "SAVING" as const,
+        order: 3,
+        isDefault: true,
+      },
+      {
+        name: "비상금",
+        icon: "🚨",
+        type: "SAVING" as const,
+        order: 4,
         isDefault: true,
       },
     ];

@@ -6,19 +6,23 @@ import { cn } from "@/lib/utils";
 const pageInfo: Record<string, { title: string; description: string }> = {
   "/": {
     title: "홈",
-    description: "일별 지출 내역을 확인합니다",
+    description: "목표 달성 현황을 확인합니다",
   },
-  "/fixed-expenses": {
-    title: "고정지출",
-    description: "월세, 구독료 등 고정 지출을 관리합니다",
+  "/transactions": {
+    title: "가계부",
+    description: "수입/지출 내역을 관리합니다",
   },
-  "/reports": {
-    title: "리포트",
-    description: "지출 통계 및 분석을 확인합니다",
+  "/automation": {
+    title: "자동화",
+    description: "고정 지출/저축을 관리합니다",
   },
-  "/settings": {
-    title: "설정",
-    description: "앱 설정을 관리합니다",
+  "/assets": {
+    title: "자산",
+    description: "저축 및 투자 자산을 관리합니다",
+  },
+  "/more": {
+    title: "더보기",
+    description: "분석 및 설정을 관리합니다",
   },
 };
 

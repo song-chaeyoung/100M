@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Pin, BarChart3, Settings } from "lucide-react";
+import { Home, BookOpen, Repeat, Wallet, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -12,19 +12,24 @@ const tabs = [
     icon: Home,
   },
   {
-    name: "고정지출",
-    href: "/fixed-expenses",
-    icon: Pin,
+    name: "가계부",
+    href: "/transactions",
+    icon: BookOpen,
   },
   {
-    name: "리포트",
-    href: "/reports",
-    icon: BarChart3,
+    name: "자동화",
+    href: "/automation",
+    icon: Repeat,
   },
   {
-    name: "설정",
-    href: "/settings",
-    icon: Settings,
+    name: "자산",
+    href: "/assets",
+    icon: Wallet,
+  },
+  {
+    name: "더보기",
+    href: "/more",
+    icon: MoreHorizontal,
   },
 ];
 
