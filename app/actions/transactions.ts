@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { transactions } from "@/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import dayjs from "dayjs";
-import type { TransactionSummary } from "@/lib/api/types";
+import type { TransactionSummary, TransactionType } from "@/lib/api/types";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
@@ -42,15 +42,16 @@ export async function getTransactionsByMonth(
         ),
       );
 
-    // 날짜별로 수입/지출 여부 집계
+    // 날짜별로 수입/지출/저축 여부 집계
     const summary = result.reduce(
       (acc, tx) => {
         const dateKey = tx.date;
         if (!acc[dateKey]) {
-          acc[dateKey] = { date: dateKey, hasIncome: false, hasExpense: false };
+          acc[dateKey] = { date: dateKey, hasIncome: false, hasExpense: false, hasSaving: false };
         }
         if (tx.type === "INCOME") acc[dateKey].hasIncome = true;
         if (tx.type === "EXPENSE") acc[dateKey].hasExpense = true;
+        if (tx.type === "SAVING") acc[dateKey].hasSaving = true;
         return acc;
       },
       {} as Record<string, TransactionSummary>,
@@ -106,12 +107,13 @@ export async function getTransactionsByDate(date: string) {
  * @returns 생성 결과
  */
 export async function createTransaction(data: {
-  type: "INCOME" | "EXPENSE";
+  type: TransactionType;
   amount: number;
-  method: "CARD" | "CASH";
+  method?: "CARD" | "CASH";
   date: string;
-  categoryId: number;
+  categoryId?: number;
   memo?: string;
+  linkedAssetTransactionId?: number;
 }) {
   try {
     // 쿠키 가져오기
@@ -159,12 +161,13 @@ export async function createTransaction(data: {
 export async function updateTransaction(
   id: number,
   data: {
-    type: "INCOME" | "EXPENSE";
+    type: TransactionType;
     amount: number;
-    method: "CARD" | "CASH";
+    method?: "CARD" | "CASH";
     date: string;
-    categoryId: number;
+    categoryId?: number;
     memo?: string;
+    linkedAssetTransactionId?: number;
   },
 ) {
   try {

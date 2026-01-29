@@ -17,6 +17,7 @@ interface CalendarBottomSheetProps {
   selectedDate: string | null;
   expenseCategories: Category[];
   incomeCategories: Category[];
+  savingCategories: Category[];
   onTransactionChange?: () => void | Promise<void>;
 }
 
@@ -26,6 +27,7 @@ export function CalendarBottomSheet({
   selectedDate,
   expenseCategories,
   incomeCategories,
+  savingCategories,
   onTransactionChange,
 }: CalendarBottomSheetProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -120,7 +122,34 @@ export function CalendarBottomSheet({
                   const category = [
                     ...expenseCategories,
                     ...incomeCategories,
+                    ...savingCategories,
                   ].find((c) => c.id === transaction.categoryId);
+
+                  const getTypeStyle = () => {
+                    switch (transaction.type) {
+                      case "INCOME":
+                        return "text-blue-600 dark:text-blue-400";
+                      case "EXPENSE":
+                        return "text-red-600 dark:text-red-400";
+                      case "SAVING":
+                        return "text-green-600 dark:text-green-400";
+                      default:
+                        return "";
+                    }
+                  };
+
+                  const getTypePrefix = () => {
+                    switch (transaction.type) {
+                      case "INCOME":
+                        return "+";
+                      case "EXPENSE":
+                        return "-";
+                      case "SAVING":
+                        return "→";
+                      default:
+                        return "";
+                    }
+                  };
 
                   return (
                     <div
@@ -137,20 +166,18 @@ export function CalendarBottomSheet({
                             {category?.icon || "📝"}
                           </span>
                           <span>{category?.name || "카테고리 없음"}</span>
-                          <span>•</span>
-                          <span>
-                            {transaction.method === "CARD" ? "카드" : "현금"}
-                          </span>
+                          {transaction.method && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {transaction.method === "CARD" ? "카드" : "현금"}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <span
-                        className={`text-sm font-semibold ${
-                          transaction.type === "INCOME"
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-red-600 dark:text-red-400"
-                        }`}
-                      >
-                        {transaction.type === "INCOME" ? "+" : "-"}
+                      <span className={`text-sm font-semibold ${getTypeStyle()}`}>
+                        {getTypePrefix()}
                         {parseInt(transaction.amount).toLocaleString()}원
                       </span>
                     </div>
@@ -190,6 +217,7 @@ export function CalendarBottomSheet({
         }
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        savingCategories={savingCategories}
       />
     </>
   );

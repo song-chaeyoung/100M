@@ -42,20 +42,21 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-    // 날짜별로 수입/지출 여부 집계
+    // 날짜별로 수입/지출/저축 여부 집계
     const summary = result.reduce(
       (acc, tx) => {
         const dateKey = tx.date;
         if (!acc[dateKey]) {
-          acc[dateKey] = { date: dateKey, hasIncome: false, hasExpense: false };
+          acc[dateKey] = { date: dateKey, hasIncome: false, hasExpense: false, hasSaving: false };
         }
         if (tx.type === "INCOME") acc[dateKey].hasIncome = true;
         if (tx.type === "EXPENSE") acc[dateKey].hasExpense = true;
+        if (tx.type === "SAVING") acc[dateKey].hasSaving = true;
         return acc;
       },
       {} as Record<
         string,
-        { date: string; hasIncome: boolean; hasExpense: boolean }
+        { date: string; hasIncome: boolean; hasExpense: boolean; hasSaving: boolean }
       >,
     );
 
@@ -78,14 +79,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, amount, method, date, categoryId, memo } = body;
+    const { type, amount, method, date, categoryId, memo, linkedAssetTransactionId } = body;
 
     // 유효성 검사
-    if (!type || !amount || !method || !date || !categoryId) {
+    if (!type || !amount || !date) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
       );
+    }
+
+    // INCOME/EXPENSE는 categoryId, method 필수
+    if (type === "INCOME" || type === "EXPENSE") {
+      if (!categoryId) {
+        return NextResponse.json(
+          { error: "Category is required for INCOME/EXPENSE" },
+          { status: 400 },
+        );
+      }
+      if (!method) {
+        return NextResponse.json(
+          { error: "Method is required for INCOME/EXPENSE" },
+          { status: 400 },
+        );
+      }
     }
 
     // DB에 삽입
@@ -95,11 +112,12 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         type,
         amount: amount.toString(),
-        method,
+        method: type === "SAVING" ? null : method,
         date,
-        categoryId,
+        categoryId: categoryId || null,
         memo: memo || null,
         isFixed: false,
+        linkedAssetTransactionId: linkedAssetTransactionId || null,
       })
       .returning();
 
@@ -132,7 +150,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, amount, method, date, categoryId, memo } = body;
+    const { type, amount, method, date, categoryId, memo, linkedAssetTransactionId } = body;
 
     // 본인의 거래인지 확인
     const existing = await db
@@ -159,10 +177,11 @@ export async function PATCH(request: NextRequest) {
       .set({
         type,
         amount: amount.toString(),
-        method,
+        method: type === "SAVING" ? null : method,
         date,
-        categoryId,
+        categoryId: categoryId || null,
         memo: memo || null,
+        linkedAssetTransactionId: linkedAssetTransactionId || null,
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, parseInt(id)))

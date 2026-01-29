@@ -15,11 +15,12 @@ export default async function TransactionsPage() {
 
   const currentMonth = dayjs().format("YYYY-MM");
 
-  const [initialTransactions, expenseCategories, incomeCategories] =
+  const [initialTransactions, expenseCategories, incomeCategories, savingCategories] =
     await Promise.all([
       getTransactionsByMonth(currentMonth),
       getCategories("EXPENSE"),
       getCategories("INCOME"),
+      getCategories("SAVING"),
     ]);
 
   return (
@@ -29,6 +30,7 @@ export default async function TransactionsPage() {
         initialTransactions={initialTransactions}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        savingCategories={savingCategories}
       />
     </div>
   );

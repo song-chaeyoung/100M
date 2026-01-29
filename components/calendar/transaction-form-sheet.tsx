@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { cn, formatAmount } from "@/lib/utils";
 import { type Category } from "@/lib/api/categories";
+import type { TransactionType } from "@/lib/api/types";
 import {
   createTransaction,
   updateTransaction,
@@ -29,10 +30,10 @@ import { toast } from "sonner";
 
 // Zod 스키마 정의
 const transactionFormSchema = z.object({
-  type: z.enum(["INCOME", "EXPENSE"]),
+  type: z.enum(["INCOME", "EXPENSE", "SAVING"]),
   amount: z.string().min(1, "금액을 입력하세요"),
-  method: z.enum(["CARD", "CASH"]),
-  categoryId: z.number().min(1, "카테고리를 선택하세요"),
+  method: z.enum(["CARD", "CASH"]).optional(),
+  categoryId: z.number().optional(),
   memo: z.string().optional(),
   date: z.date(),
 });
@@ -41,10 +42,10 @@ type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 interface TransactionData {
   id?: number;
-  type: "INCOME" | "EXPENSE";
+  type: TransactionType;
   amount: string;
-  method: "CARD" | "CASH";
-  categoryId: number;
+  method: "CARD" | "CASH" | null;
+  categoryId: number | null;
   memo: string;
   date: Date;
 }
@@ -57,6 +58,7 @@ interface TransactionFormSheetProps {
   initialData?: TransactionData;
   expenseCategories: Category[];
   incomeCategories: Category[];
+  savingCategories: Category[];
 }
 
 export function TransactionFormSheet({
@@ -67,6 +69,7 @@ export function TransactionFormSheet({
   initialData,
   expenseCategories,
   incomeCategories,
+  savingCategories,
 }: TransactionFormSheetProps) {
   // react-hook-form 설정
   const form = useForm<TransactionFormValues>({
@@ -75,7 +78,7 @@ export function TransactionFormSheet({
       type: "EXPENSE",
       amount: "",
       method: "CARD",
-      categoryId: 0,
+      categoryId: undefined,
       memo: "",
       date: new Date(selectedDate),
     },
@@ -88,8 +91,8 @@ export function TransactionFormSheet({
         form.reset({
           type: initialData.type,
           amount: formatAmount(Number(initialData.amount).toFixed(0)),
-          method: initialData.method,
-          categoryId: initialData.categoryId,
+          method: initialData.method ?? undefined,
+          categoryId: initialData.categoryId ?? undefined,
           memo: initialData.memo || "",
           date: initialData.date,
         });
@@ -98,7 +101,7 @@ export function TransactionFormSheet({
           type: "EXPENSE",
           amount: "",
           method: "CARD",
-          categoryId: 0,
+          categoryId: undefined,
           memo: "",
           date: new Date(selectedDate),
         });
@@ -111,10 +114,37 @@ export function TransactionFormSheet({
 
   // 현재 거래 타입 감시 (카테고리 목록 변경용)
   const transactionType = watch("type");
+  const categoryId = watch("categoryId");
+  const method = watch("method");
+  const amount = watch("amount");
+
+  // 타입별 필수값 검증
+  const isRequiredFieldsFilled = (() => {
+    // 공통: 금액 필수
+    if (!amount) return false;
+
+    // INCOME/EXPENSE: categoryId, method 필수
+    if (transactionType === "INCOME" || transactionType === "EXPENSE") {
+      return !!categoryId && !!method;
+    }
+
+    // SAVING: categoryId, method 불필요
+    return true;
+  })();
 
   // 카테고리는 props로 받아서 즉시 사용
-  const categories =
-    transactionType === "EXPENSE" ? expenseCategories : incomeCategories;
+  const categories = (() => {
+    switch (transactionType) {
+      case "EXPENSE":
+        return expenseCategories;
+      case "INCOME":
+        return incomeCategories;
+      case "SAVING":
+        return savingCategories;
+      default:
+        return [];
+    }
+  })();
 
   // 폼 제출 핸들러
   const onSubmit = async (data: TransactionFormValues) => {
@@ -193,9 +223,10 @@ export function TransactionFormSheet({
           control={control}
           render={({ field }) => (
             <Tabs value={field.value} onValueChange={field.onChange}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="EXPENSE">지출</TabsTrigger>
                 <TabsTrigger value="INCOME">수입</TabsTrigger>
+                <TabsTrigger value="SAVING">저축</TabsTrigger>
               </TabsList>
             </Tabs>
           )}
@@ -256,65 +287,61 @@ export function TransactionFormSheet({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>결제수단</Label>
-          <Controller
-            name="method"
-            control={control}
-            render={({ field }) => (
-              <div className="flex gap-2">
-                <Badge
-                  variant={field.value === "CARD" ? "default" : "outline"}
-                  className="flex-1 justify-center py-2 cursor-pointer"
-                  onClick={() => field.onChange("CARD")}
-                >
-                  카드
-                </Badge>
-                <Badge
-                  variant={field.value === "CASH" ? "default" : "outline"}
-                  className="flex-1 justify-center py-2 cursor-pointer"
-                  onClick={() => field.onChange("CASH")}
-                >
-                  현금
-                </Badge>
-              </div>
-            )}
-          />
-        </div>
+        {transactionType !== "SAVING" && (
+          <div className="space-y-2">
+            <Label>결제수단</Label>
+            <Controller
+              name="method"
+              control={control}
+              render={({ field }) => (
+                <div className="flex gap-2">
+                  <Badge
+                    variant={field.value === "CARD" ? "default" : "outline"}
+                    className="flex-1 justify-center py-2 cursor-pointer"
+                    onClick={() => field.onChange("CARD")}
+                  >
+                    카드
+                  </Badge>
+                  <Badge
+                    variant={field.value === "CASH" ? "default" : "outline"}
+                    className="flex-1 justify-center py-2 cursor-pointer"
+                    onClick={() => field.onChange("CASH")}
+                  >
+                    현금
+                  </Badge>
+                </div>
+              )}
+            />
+          </div>
+        )}
 
-        <div className="space-y-2">
-          <Label>카테고리</Label>
-          <Controller
-            name="categoryId"
-            control={control}
-            render={({ field }) => (
-              <>
-                {categories.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-2">
-                    {categories.map((category) => (
-                      <div
-                        key={category.id}
-                        onClick={() => field.onChange(category.id)}
-                        className={cn(
-                          "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
-                          field.value === category.id &&
-                            "bg-primary text-primary-foreground",
-                        )}
-                      >
-                        <div className="text-2xl">{category.icon}</div>
-                        <div className="text-xs mt-1">{category.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    카테고리가 없습니다
-                  </div>
-                )}
-              </>
-            )}
-          />
-        </div>
+        {categories.length > 0 && (
+          <div className="space-y-2">
+            <Label>카테고리</Label>
+            <Controller
+              name="categoryId"
+              control={control}
+              render={({ field }) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      onClick={() => field.onChange(category.id)}
+                      className={cn(
+                        "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
+                        field.value === category.id &&
+                          "bg-primary text-primary-foreground",
+                      )}
+                    >
+                      <div className="text-2xl">{category.icon}</div>
+                      <div className="text-xs mt-1">{category.name}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>메모 (선택)</Label>
@@ -348,7 +375,7 @@ export function TransactionFormSheet({
             className="flex-1"
             size="lg"
             disabled={
-              !formState.isValid ||
+              !isRequiredFieldsFilled ||
               isSubmitting ||
               (mode === "edit" && !isDirty)
             }

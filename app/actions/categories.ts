@@ -5,12 +5,13 @@ import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import type { CategoryType } from "@/lib/api/types";
 
 export interface Category {
   id: number;
   name: string;
   icon: string;
-  type: "INCOME" | "EXPENSE";
+  type: CategoryType;
   userId: string | null;
   order: number;
   isDefault: boolean;
@@ -21,7 +22,7 @@ export interface Category {
  */
 async function getCategoriesInternal(
   userId: string,
-  type?: "INCOME" | "EXPENSE",
+  type?: CategoryType,
 ): Promise<Category[]> {
   const userCondition = or(
     eq(categories.userId, userId),
@@ -46,7 +47,7 @@ async function getCategoriesInternal(
  * Next.js unstable_cache로 캐싱
  */
 export async function getCategories(
-  type?: "INCOME" | "EXPENSE",
+  type?: CategoryType,
 ): Promise<Category[]> {
   const session = await auth();
   if (!session?.user?.id) {

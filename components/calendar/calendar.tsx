@@ -23,12 +23,14 @@ interface CalendarProps {
   initialTransactions: TransactionSummary[];
   expenseCategories: Category[];
   incomeCategories: Category[];
+  savingCategories: Category[];
 }
 
 export function Calendar({
   initialTransactions,
   expenseCategories,
   incomeCategories,
+  savingCategories,
 }: CalendarProps) {
   const [api, setApi] = useState<CarouselApi>();
   const skipScrollRef = useRef(false);
@@ -183,6 +185,7 @@ export function Calendar({
         selectedDate={selectedDate}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
+        savingCategories={savingCategories}
         onTransactionChange={refetchCurrentMonth}
       />
     </>

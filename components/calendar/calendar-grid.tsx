@@ -50,6 +50,7 @@ export function CalendarGrid({
               isSelected={day.date === selectedDate}
               hasIncome={transaction?.hasIncome}
               hasExpense={transaction?.hasExpense}
+              hasSaving={transaction?.hasSaving}
               onClick={() => onDateClick(day.date)}
             />
           );

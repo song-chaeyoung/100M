@@ -186,7 +186,7 @@ export const transactions = pgTable(
     amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
 
     type: transactionTypeEnum("type").notNull(), // INCOME, EXPENSE, SAVING
-    method: methodEnum("method").default("CARD").notNull(),
+    method: methodEnum("method"), // SAVING 타입은 null 허용
 
     date: date("date", { mode: "string" }).notNull(),
 

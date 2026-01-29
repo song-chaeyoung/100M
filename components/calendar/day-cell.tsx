@@ -10,6 +10,7 @@ interface DayCellProps {
   isSelected: boolean;
   hasIncome?: boolean;
   hasExpense?: boolean;
+  hasSaving?: boolean;
   onClick: () => void;
 }
 
@@ -20,6 +21,7 @@ export function DayCell({
   isSelected,
   hasIncome,
   hasExpense,
+  hasSaving,
   onClick,
 }: DayCellProps) {
   const dayNumber = dayjs(date).date();
@@ -37,7 +39,7 @@ export function DayCell({
     >
       <span className="text-sm font-medium">{dayNumber}</span>
 
-      {(hasIncome || hasExpense) && (
+      {(hasIncome || hasExpense || hasSaving) && (
         <div className="flex gap-1 mt-1">
           {hasIncome && (
             <div
@@ -49,6 +51,12 @@ export function DayCell({
             <div
               className="w-1.5 h-1.5 rounded-full bg-red-500"
               title="지출 있음"
+            />
+          )}
+          {hasSaving && (
+            <div
+              className="w-1.5 h-1.5 rounded-full bg-green-500"
+              title="저축 있음"
             />
           )}
         </div>
