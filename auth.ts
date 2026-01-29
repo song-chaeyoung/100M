@@ -2,7 +2,13 @@ import NextAuth from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { authConfig } from "./auth.config";
 import { db } from "./db";
-import { accounts, sessions, users, verificationTokens } from "./db/schema";
+import {
+  accounts,
+  sessions,
+  users,
+  verificationTokens,
+  goals,
+} from "./db/schema";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -25,9 +31,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.sub = user.id;
+      }
+      if (trigger === "signUp") {
+        await db.insert(goals).values({
+          userId: user.id!,
+          startDate: new Date().toISOString().split("T")[0],
+          initialAmount: "0",
+          targetAmount: "100000000",
+          isActive: true,
+        });
       }
       return token;
     },
