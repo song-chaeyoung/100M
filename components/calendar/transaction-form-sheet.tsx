@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import dayjs from "dayjs";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -20,35 +19,17 @@ import {
 } from "@/components/ui/popover";
 import { cn, formatAmount } from "@/lib/utils";
 import { type Category } from "@/lib/api/categories";
-import type { TransactionType } from "@/lib/api/types";
+import {
+  transactionFormSchema,
+  type TransactionFormValues,
+  type TransactionData,
+} from "@/lib/validations/transaction";
 import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
 } from "@/app/actions/transactions";
 import { toast } from "sonner";
-
-// Zod 스키마 정의
-const transactionFormSchema = z.object({
-  type: z.enum(["INCOME", "EXPENSE", "SAVING"]),
-  amount: z.string().min(1, "금액을 입력하세요"),
-  method: z.enum(["CARD", "CASH"]).optional(),
-  categoryId: z.number().optional(),
-  memo: z.string().optional(),
-  date: z.date(),
-});
-
-type TransactionFormValues = z.infer<typeof transactionFormSchema>;
-
-interface TransactionData {
-  id?: number;
-  type: TransactionType;
-  amount: string;
-  method: "CARD" | "CASH" | null;
-  categoryId: number | null;
-  memo: string;
-  date: Date;
-}
 
 interface TransactionFormSheetProps {
   open: boolean;

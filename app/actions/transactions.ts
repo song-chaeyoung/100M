@@ -5,8 +5,12 @@ import { db } from "@/db";
 import { transactions, categories } from "@/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import dayjs from "dayjs";
-import type { TransactionSummary, TransactionType } from "@/lib/api/types";
+import type { TransactionSummary } from "@/lib/api/types";
 import { revalidatePath } from "next/cache";
+import {
+  transactionSchema,
+  type TransactionInput,
+} from "@/lib/validations/transaction";
 
 /**
  * 특정 월의 거래 내역 요약 조회
@@ -116,48 +120,31 @@ export async function getTransactionsByDate(date: string) {
  * @param data - 거래 데이터
  * @returns 생성 결과
  */
-export async function createTransaction(data: {
-  type: TransactionType;
-  amount: number;
-  method?: "CARD" | "CASH";
-  date: string;
-  categoryId?: number;
-  memo?: string;
-  linkedAssetTransactionId?: number;
-}) {
+export async function createTransaction(data: TransactionInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // 유효성 검사
-    if (!data.type || !data.amount || !data.date) {
-      return { success: false, error: "Missing required fields" };
-    }
-
-    // INCOME/EXPENSE는 categoryId, method 필수
-    if (data.type === "INCOME" || data.type === "EXPENSE") {
-      if (!data.categoryId) {
-        return { success: false, error: "Category is required for INCOME/EXPENSE" };
-      }
-      if (!data.method) {
-        return { success: false, error: "Method is required for INCOME/EXPENSE" };
-      }
+    // Zod 검증
+    const parsed = transactionSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.flatten().fieldErrors };
     }
 
     const result = await db
       .insert(transactions)
       .values({
         userId: session.user.id,
-        type: data.type,
-        amount: data.amount.toString(),
-        method: data.type === "SAVING" ? null : data.method,
-        date: data.date,
-        categoryId: data.categoryId || null,
-        memo: data.memo || null,
+        type: parsed.data.type,
+        amount: parsed.data.amount.toString(),
+        method: parsed.data.type === "SAVING" ? null : parsed.data.method,
+        date: parsed.data.date,
+        categoryId: parsed.data.categoryId || null,
+        memo: parsed.data.memo || null,
         isFixed: false,
-        linkedAssetTransactionId: data.linkedAssetTransactionId || null,
+        linkedAssetTransactionId: parsed.data.linkedAssetTransactionId || null,
       })
       .returning();
 
@@ -178,20 +165,18 @@ export async function createTransaction(data: {
  */
 export async function updateTransaction(
   id: number,
-  data: {
-    type: TransactionType;
-    amount: number;
-    method?: "CARD" | "CASH";
-    date: string;
-    categoryId?: number;
-    memo?: string;
-    linkedAssetTransactionId?: number;
-  },
+  data: TransactionInput,
 ) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    // Zod 검증
+    const parsed = transactionSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.flatten().fieldErrors };
     }
 
     // 본인의 거래인지 확인
@@ -213,13 +198,13 @@ export async function updateTransaction(
     const result = await db
       .update(transactions)
       .set({
-        type: data.type,
-        amount: data.amount.toString(),
-        method: data.type === "SAVING" ? null : data.method,
-        date: data.date,
-        categoryId: data.categoryId || null,
-        memo: data.memo || null,
-        linkedAssetTransactionId: data.linkedAssetTransactionId || null,
+        type: parsed.data.type,
+        amount: parsed.data.amount.toString(),
+        method: parsed.data.type === "SAVING" ? null : parsed.data.method,
+        date: parsed.data.date,
+        categoryId: parsed.data.categoryId || null,
+        memo: parsed.data.memo || null,
+        linkedAssetTransactionId: parsed.data.linkedAssetTransactionId || null,
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, id))
