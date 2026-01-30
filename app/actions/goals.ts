@@ -1,0 +1,122 @@
+"use server";
+
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { goals } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+
+export interface GoalData {
+  id: number;
+  targetAmount: number;
+  initialAmount: number;
+}
+
+/**
+ * 활성 목표 조회
+ */
+export async function getGoal(): Promise<GoalData | null> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return null;
+    }
+
+    const [activeGoal] = await db
+      .select({
+        id: goals.id,
+        targetAmount: goals.targetAmount,
+        initialAmount: goals.initialAmount,
+      })
+      .from(goals)
+      .where(and(eq(goals.userId, session.user.id), eq(goals.isActive, true)))
+      .limit(1);
+
+    if (!activeGoal) {
+      return null;
+    }
+
+    return {
+      id: activeGoal.id,
+      targetAmount: Number(activeGoal.targetAmount),
+      initialAmount: Number(activeGoal.initialAmount),
+    };
+  } catch (error) {
+    console.error("Error fetching goal:", error);
+    return null;
+  }
+}
+
+/**
+ * 목표 금액 수정
+ */
+export async function updateTargetAmount(
+  goalId: number,
+  targetAmount: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    await db
+      .update(goals)
+      .set({
+        targetAmount: String(targetAmount),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(goals.id, goalId),
+          eq(goals.userId, session.user.id),
+          eq(goals.isActive, true)
+        )
+      );
+
+    revalidatePath("/");
+    revalidatePath("/more");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating target amount:", error);
+    return { success: false, error: "목표 금액 수정에 실패했습니다." };
+  }
+}
+
+/**
+ * 초기 자금 수정
+ */
+export async function updateInitialAmount(
+  goalId: number,
+  initialAmount: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    await db
+      .update(goals)
+      .set({
+        initialAmount: String(initialAmount),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(goals.id, goalId),
+          eq(goals.userId, session.user.id),
+          eq(goals.isActive, true)
+        )
+      );
+
+    revalidatePath("/");
+    revalidatePath("/more");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating initial amount:", error);
+    return { success: false, error: "초기 자금 수정에 실패했습니다." };
+  }
+}

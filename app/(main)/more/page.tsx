@@ -1,19 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { signOut } from "next-auth/react";
 import { PageHeader } from "@/components/page-header";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AmountEditModal } from "@/components/more/goal";
+import {
+  getGoal,
+  updateTargetAmount,
+  updateInitialAmount,
+  type GoalData,
+} from "@/app/actions/goals";
 
 export default function MorePage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [goal, setGoal] = useState<GoalData | null>(null);
+
+  // 모달 상태
+  const [goalModalOpen, setGoalModalOpen] = useState<
+    "target" | "initial" | null
+  >(null);
+
+  // 목표 데이터 조회
+  const fetchGoal = useCallback(async () => {
+    const data = await getGoal();
+    setGoal(data);
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-  }, []);
+    fetchGoal();
+  }, [fetchGoal]);
+
+  // 목표 금액 저장
+  const handleSaveTargetAmount = async (value: number) => {
+    if (!goal) return { success: false, error: "목표가 없습니다." };
+
+    const result = await updateTargetAmount(goal.id, value);
+    if (result.success) {
+      setGoal({ ...goal, targetAmount: value });
+    }
+    return result;
+  };
+
+  // 초기 자금 저장
+  const handleSaveInitialAmount = async (value: number) => {
+    if (!goal) return { success: false, error: "목표가 없습니다." };
+
+    const result = await updateInitialAmount(goal.id, value);
+    if (result.success) {
+      setGoal({ ...goal, initialAmount: value });
+    }
+    return result;
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -42,11 +85,23 @@ export default function MorePage() {
             목표 및 설정
           </h3>
           <ul className="space-y-1">
-            <li className="cursor-pointer py-2 text-base hover:text-primary">
-              목표 금액 설정
+            <li
+              className="flex cursor-pointer items-center justify-between py-3 hover:text-primary"
+              onClick={() => setGoalModalOpen("target")}
+            >
+              <span className="text-base">목표 금액 설정</span>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <ChevronRight className="h-4 w-4" />
+              </div>
             </li>
-            <li className="cursor-pointer py-2 text-base hover:text-primary">
-              초기 자금 설정
+            <li
+              className="flex cursor-pointer items-center justify-between py-3 hover:text-primary"
+              onClick={() => setGoalModalOpen("initial")}
+            >
+              <span className="text-base">초기 자금 설정</span>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <ChevronRight className="h-4 w-4" />
+              </div>
             </li>
           </ul>
         </section>
@@ -114,6 +169,28 @@ export default function MorePage() {
           </ul>
         </section>
       </div>
+
+      {/* 목표 금액 수정 모달 */}
+      <AmountEditModal
+        open={goalModalOpen === "target"}
+        onOpenChange={() => setGoalModalOpen(null)}
+        title="목표 금액 변경"
+        description="달성하고 싶은 목표 금액을 입력해주세요."
+        placeholder="목표 금액을 입력하세요"
+        initialValue={goal?.targetAmount ?? 0}
+        onSave={handleSaveTargetAmount}
+      />
+
+      {/* 초기 자금 수정 모달 */}
+      <AmountEditModal
+        open={goalModalOpen === "initial"}
+        onOpenChange={() => setGoalModalOpen(null)}
+        title="초기 자금 변경"
+        description="시작 시점의 보유 자금을 입력해주세요."
+        placeholder="초기 자금을 입력하세요"
+        initialValue={goal?.initialAmount ?? 0}
+        onSave={handleSaveInitialAmount}
+      />
     </div>
   );
 }
