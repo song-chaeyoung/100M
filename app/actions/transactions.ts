@@ -87,6 +87,7 @@ export async function getTransactionsByDate(date: string) {
         categoryId: transactions.categoryId,
         memo: transactions.memo,
         isFixed: transactions.isFixed,
+        isConfirmed: transactions.isConfirmed,
         fixedExpenseId: transactions.fixedExpenseId,
         linkedAssetTransactionId: transactions.linkedAssetTransactionId,
         createdAt: transactions.createdAt,
@@ -144,6 +145,7 @@ export async function createTransaction(data: TransactionInput) {
         categoryId: parsed.data.categoryId || null,
         memo: parsed.data.memo || null,
         isFixed: false,
+        isConfirmed: parsed.data.isConfirmed ?? true,
         linkedAssetTransactionId: parsed.data.linkedAssetTransactionId || null,
       })
       .returning();
@@ -204,6 +206,7 @@ export async function updateTransaction(
         date: parsed.data.date,
         categoryId: parsed.data.categoryId || null,
         memo: parsed.data.memo || null,
+        isConfirmed: parsed.data.isConfirmed ?? true,
         linkedAssetTransactionId: parsed.data.linkedAssetTransactionId || null,
         updatedAt: new Date(),
       })

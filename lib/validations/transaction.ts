@@ -12,6 +12,7 @@ export const transactionSchema = z
     categoryId: z.number().optional(),
     memo: z.string().optional(),
     linkedAssetTransactionId: z.number().optional(),
+    isConfirmed: z.boolean().optional().default(true),
   })
   .refine(
     (data) => {
@@ -50,6 +51,7 @@ export const transactionFormSchema = z.object({
   categoryId: z.number().optional(),
   memo: z.string().optional(),
   date: z.date(),
+  isConfirmed: z.boolean(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;
@@ -65,4 +67,5 @@ export interface TransactionData {
   categoryId: number | null;
   memo: string;
   date: Date;
+  isConfirmed: boolean;
 }

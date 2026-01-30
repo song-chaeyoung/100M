@@ -18,6 +18,7 @@ export interface Transaction {
   categoryId: number | null;
   memo: string | null;
   isFixed: boolean;
+  isConfirmed: boolean;
   fixedExpenseId: number | null;
   linkedAssetTransactionId: number | null;
   createdAt: Date;

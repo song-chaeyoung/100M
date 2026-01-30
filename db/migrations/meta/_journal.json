@@ -15,6 +15,13 @@
       "when": 1769647963433,
       "tag": "0001_spicy_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769751052213,
+      "tag": "0002_groovy_ben_grimm",
+      "breakpoints": true
     }
   ]
 }
