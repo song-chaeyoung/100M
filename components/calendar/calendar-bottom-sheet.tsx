@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TransactionFormSheet } from "./transaction-form-sheet";
 import { getTransactionsByDate } from "@/app/actions/transactions";
 import type { Category } from "@/lib/api/categories";
-import type { Transaction } from "@/lib/api/types";
+import type { Transaction } from "@/db/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface CalendarBottomSheetProps {

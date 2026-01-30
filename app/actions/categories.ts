@@ -2,10 +2,9 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { categories } from "@/db/schema";
+import { categories, type CategoryType } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
-import type { CategoryType } from "@/lib/api/types";
 
 export interface Category {
   id: number;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TransactionType, MethodType } from "@/db/schema";
 
 /**
  * 서버 액션용 스키마 (amount: number, date: string)
@@ -57,13 +58,13 @@ export const transactionFormSchema = z.object({
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 /**
- * 거래 데이터 타입 (조회/수정용)
+ * 거래 데이터 타입 (조회/수정용, date가 Date 타입)
  */
 export interface TransactionData {
   id?: number;
-  type: "INCOME" | "EXPENSE" | "SAVING";
+  type: TransactionType;
   amount: string;
-  method: "CARD" | "CASH" | null;
+  method: MethodType | null;
   categoryId: number | null;
   memo: string;
   date: Date;

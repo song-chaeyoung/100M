@@ -535,6 +535,16 @@ export const fixedSavingsRelations = relations(
 // 5. Type Exports
 // -------------------------------------------------------------------
 
+// Enum Types
+export type TransactionType = (typeof transactionTypeEnum.enumValues)[number];
+export type MethodType = (typeof methodEnum.enumValues)[number];
+export type CategoryType = (typeof categoryTypeEnum.enumValues)[number];
+export type FixedExpenseType = (typeof fixedExpenseTypeEnum.enumValues)[number];
+export type AssetType = (typeof assetTypeEnum.enumValues)[number];
+export type AssetTransactionType =
+  (typeof assetTransactionTypeEnum.enumValues)[number];
+
+// Table Types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
