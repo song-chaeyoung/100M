@@ -7,6 +7,8 @@ export const fixedExpenseSchema = z.object({
   type: z.enum(["FIXED", "ETC"]),
   categoryId: z.number({ error: "카테고리를 선택하세요" }),
   method: z.enum(["CARD", "CASH"]),
+  startDate: z.string().regex(/^\d{4}-\d{2}$/, "YYYY-MM 형식이어야 합니다"),
+  endDate: z.string().regex(/^\d{4}-\d{2}$/, "YYYY-MM 형식이어야 합니다"),
 });
 
 export type FixedExpenseInput = z.infer<typeof fixedExpenseSchema>;

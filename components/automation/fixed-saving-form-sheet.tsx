@@ -20,12 +20,19 @@ import {
   deleteFixedSaving,
 } from "@/app/actions/fixed-savings";
 import { toast } from "sonner";
+import dayjs from "dayjs";
+
+// 기본 기간 (현재 월 ~ 12개월 후)
+const getDefaultDates = () => ({
+  startDate: dayjs().format("YYYY-MM"),
+  endDate: dayjs().add(11, "month").format("YYYY-MM"),
+});
 
 interface FixedSavingFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
-  initialData?: Pick<FixedSaving, "id" | "title" | "amount" | "scheduledDay" | "assetId">;
+  initialData?: Pick<FixedSaving, "id" | "title" | "amount" | "scheduledDay" | "assetId" | "startDate" | "endDate">;
   assets: Asset[];
 }
 
@@ -43,6 +50,7 @@ export function FixedSavingFormSheet({
       amount: 0,
       scheduledDay: 1,
       assetId: undefined,
+      ...getDefaultDates(),
     },
   });
 
@@ -54,6 +62,8 @@ export function FixedSavingFormSheet({
           amount: Number(initialData.amount),
           scheduledDay: initialData.scheduledDay,
           assetId: initialData.assetId ?? undefined,
+          startDate: initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
+          endDate: initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
         });
       } else {
         form.reset({
@@ -61,6 +71,7 @@ export function FixedSavingFormSheet({
           amount: 0,
           scheduledDay: 1,
           assetId: undefined,
+          ...getDefaultDates(),
         });
       }
     }
@@ -194,6 +205,40 @@ export function FixedSavingFormSheet({
               </div>
             )}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>기간</Label>
+          <div className="flex items-center gap-2">
+            <Controller
+              name="startDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  type="month"
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+            <span className="text-muted-foreground">~</span>
+            <Controller
+              name="endDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  type="month"
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            기간 내 매월 자동으로 거래가 생성됩니다
+          </p>
         </div>
 
         <div className="space-y-2">

@@ -22,12 +22,30 @@ import {
   deleteFixedExpense,
 } from "@/app/actions/fixed-expenses";
 import { toast } from "sonner";
+import dayjs from "dayjs";
+
+// 기본 기간 (현재 월 ~ 12개월 후)
+const getDefaultDates = () => ({
+  startDate: dayjs().format("YYYY-MM"),
+  endDate: dayjs().add(11, "month").format("YYYY-MM"),
+});
 
 interface FixedExpenseFormSheetProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: () => void;
   mode: "create" | "edit";
-  initialData?: Pick<FixedExpense, "id" | "title" | "amount" | "scheduledDay" | "type" | "categoryId" | "method">;
+  initialData?: Pick<
+    FixedExpense,
+    | "id"
+    | "title"
+    | "amount"
+    | "scheduledDay"
+    | "type"
+    | "categoryId"
+    | "method"
+    | "startDate"
+    | "endDate"
+  >;
   categories: Category[];
 }
 
@@ -47,6 +65,7 @@ export function FixedExpenseFormSheet({
       type: "FIXED",
       categoryId: undefined,
       method: "CARD",
+      ...getDefaultDates(),
     },
   });
 
@@ -60,6 +79,8 @@ export function FixedExpenseFormSheet({
           type: initialData.type,
           categoryId: initialData.categoryId ?? undefined,
           method: initialData.method,
+          startDate: initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
+          endDate: initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
         });
       } else {
         form.reset({
@@ -69,6 +90,7 @@ export function FixedExpenseFormSheet({
           type: "FIXED",
           categoryId: undefined,
           method: "CARD",
+          ...getDefaultDates(),
         });
       }
     }
@@ -82,7 +104,8 @@ export function FixedExpenseFormSheet({
   const method = watch("method");
   const title = watch("title");
 
-  const isRequiredFieldsFilled = !!title && amount > 0 && !!categoryId && !!method;
+  const isRequiredFieldsFilled =
+    !!title && amount > 0 && !!categoryId && !!method;
 
   const onSubmit = async (data: FixedExpenseInput) => {
     try {
@@ -94,11 +117,11 @@ export function FixedExpenseFormSheet({
       }
 
       if (result?.success) {
-        onOpenChange(false);
+        onOpenChange();
         toast.success(
           mode === "create"
             ? "고정 지출이 추가되었습니다."
-            : "고정 지출이 수정되었습니다."
+            : "고정 지출이 수정되었습니다.",
         );
       } else {
         toast.error("저장에 실패했습니다.");
@@ -118,7 +141,7 @@ export function FixedExpenseFormSheet({
       const result = await deleteFixedExpense(initialData.id);
 
       if (result.success) {
-        onOpenChange(false);
+        onOpenChange();
         toast.success("고정 지출이 삭제되었습니다.");
       } else {
         toast.error("삭제에 실패했습니다.");
@@ -168,7 +191,9 @@ export function FixedExpenseFormSheet({
               <div className="relative">
                 <Input
                   type="text"
-                  value={field.value ? formatAmount(field.value.toString()) : ""}
+                  value={
+                    field.value ? formatAmount(field.value.toString()) : ""
+                  }
                   onChange={(e) => {
                     const value = e.target.value.replace(/,/g, "");
                     field.onChange(value ? Number(value) : 0);
@@ -203,6 +228,40 @@ export function FixedExpenseFormSheet({
               </div>
             )}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>기간</Label>
+          <div className="flex items-center gap-2">
+            <Controller
+              name="startDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  type="month"
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+            <span className="text-muted-foreground">~</span>
+            <Controller
+              name="endDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  type="month"
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            기간 내 매월 자동으로 거래가 생성됩니다
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -246,7 +305,7 @@ export function FixedExpenseFormSheet({
                       className={cn(
                         "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
                         field.value === category.id &&
-                          "bg-primary text-primary-foreground"
+                          "bg-primary text-primary-foreground",
                       )}
                     >
                       <div className="text-2xl">{category.icon}</div>

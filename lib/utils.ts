@@ -1,5 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import dayjs from "dayjs";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+
+dayjs.extend(isSameOrBefore);
 
 /**
  * Tailwind CSS 클래스를 병합하는 유틸리티 함수
@@ -32,3 +36,22 @@ export const formatAmount = (value: string) => {
   const number = value.replace(/[^0-9]/g, "");
   return number.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
+
+/**
+ * 두 월 사이의 모든 월을 배열로 반환
+ * @param startMonth 시작월 (YYYY-MM 형식)
+ * @param endMonth 종료월 (YYYY-MM 형식)
+ * @returns 월 배열 (예: ["2025-01", "2025-02", ...])
+ */
+export function getMonthsBetween(startMonth: string, endMonth: string): string[] {
+  const months: string[] = [];
+  let current = dayjs(startMonth).startOf("month");
+  const end = dayjs(endMonth).startOf("month");
+
+  while (current.isSameOrBefore(end)) {
+    months.push(current.format("YYYY-MM"));
+    current = current.add(1, "month");
+  }
+
+  return months;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,12 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { MonthPicker } from "@/components/ui/month-picker";
 import { cn, formatAmount } from "@/lib/utils";
 import { type Category } from "@/lib/api/categories";
 import type { Asset } from "@/lib/types/automation";
 import { createFixedExpense } from "@/app/actions/fixed-expenses";
 import { createFixedSaving } from "@/app/actions/fixed-savings";
 import { toast } from "sonner";
+import dayjs from "dayjs";
 
 interface AddFixedItemSheetProps {
   open: boolean;
@@ -25,12 +27,20 @@ interface AddFixedItemSheetProps {
   assets: Asset[];
 }
 
+// 기본 기간 (현재 월 ~ 12개월 후)
+const getDefaultDates = () => ({
+  startDate: dayjs().format("YYYY-MM"),
+  endDate: dayjs().add(11, "month").format("YYYY-MM"),
+});
+
 // 통합 스키마
 const addFixedItemSchema = z.object({
   itemType: z.enum(["expense", "saving"]),
   title: z.string().min(1, "이름을 입력하세요"),
   amount: z.number().positive("금액은 0보다 커야 합니다"),
   scheduledDay: z.number().min(1).max(31),
+  startDate: z.string().regex(/^\d{4}-\d{2}$/, "YYYY-MM 형식이어야 합니다"),
+  endDate: z.string().regex(/^\d{4}-\d{2}$/, "YYYY-MM 형식이어야 합니다"),
   // 고정 지출용
   type: z.enum(["FIXED", "ETC"]).optional(),
   categoryId: z.number().optional(),
@@ -58,6 +68,7 @@ export function AddFixedItemSheet({
       categoryId: undefined,
       method: "CARD",
       assetId: undefined,
+      ...getDefaultDates(),
     },
   });
 
@@ -72,6 +83,7 @@ export function AddFixedItemSheet({
         categoryId: undefined,
         method: "CARD",
         assetId: undefined,
+        ...getDefaultDates(),
       });
     }
   }, [open, form]);
@@ -106,6 +118,8 @@ export function AddFixedItemSheet({
           type: data.type || "FIXED",
           categoryId: data.categoryId!,
           method: data.method || "CARD",
+          startDate: data.startDate,
+          endDate: data.endDate,
         });
       } else {
         result = await createFixedSaving({
@@ -113,6 +127,8 @@ export function AddFixedItemSheet({
           amount: data.amount,
           scheduledDay: data.scheduledDay,
           assetId: data.assetId!,
+          startDate: data.startDate,
+          endDate: data.endDate,
         });
       }
 
@@ -121,7 +137,7 @@ export function AddFixedItemSheet({
         toast.success(
           data.itemType === "expense"
             ? "고정 지출이 추가되었습니다."
-            : "고정 저축이 추가되었습니다."
+            : "고정 저축이 추가되었습니다.",
         );
       } else {
         toast.error("저장에 실패했습니다.");
@@ -134,11 +150,7 @@ export function AddFixedItemSheet({
   };
 
   return (
-    <BottomSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="고정 항목 추가"
-    >
+    <BottomSheet open={open} onOpenChange={onOpenChange} title="고정 항목 추가">
       <div className="space-y-6 py-4">
         <Controller
           name="itemType"
@@ -181,7 +193,9 @@ export function AddFixedItemSheet({
               <div className="relative">
                 <Input
                   type="text"
-                  value={field.value ? formatAmount(field.value.toString()) : ""}
+                  value={
+                    field.value ? formatAmount(field.value.toString()) : ""
+                  }
                   onChange={(e) => {
                     const value = e.target.value.replace(/,/g, "");
                     field.onChange(value ? Number(value) : 0);
@@ -216,6 +230,38 @@ export function AddFixedItemSheet({
               </div>
             )}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>기간</Label>
+          <div className="flex items-center gap-2">
+            <Controller
+              name="startDate"
+              control={control}
+              render={({ field }) => (
+                <MonthPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+            <span className="text-muted-foreground">~</span>
+            <Controller
+              name="endDate"
+              control={control}
+              render={({ field }) => (
+                <MonthPicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  className="flex-1"
+                />
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            기간 내 매월 자동으로 거래가 생성됩니다
+          </p>
         </div>
 
         {itemType === "expense" && (
@@ -261,7 +307,7 @@ export function AddFixedItemSheet({
                           className={cn(
                             "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
                             field.value === category.id &&
-                              "bg-primary text-primary-foreground"
+                              "bg-primary text-primary-foreground",
                           )}
                         >
                           <div className="text-2xl">{category.icon}</div>
@@ -292,7 +338,7 @@ export function AddFixedItemSheet({
                         className={cn(
                           "p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
                           field.value === asset.id &&
-                            "bg-primary text-primary-foreground"
+                            "bg-primary text-primary-foreground",
                         )}
                       >
                         <div className="font-medium">{asset.name}</div>

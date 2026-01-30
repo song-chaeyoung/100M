@@ -28,25 +28,27 @@ export function AutomationContent({
   const [addSheetOpen, setAddSheetOpen] = useState(false);
 
   // 고정 지출 수정
-  const [expenseEditOpen, setExpenseEditOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<FixedExpense | null>(null);
+  // const [expenseEditOpen, setExpenseEditOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<FixedExpense | null>(
+    null,
+  );
 
   // 고정 저축 수정
-  const [savingEditOpen, setSavingEditOpen] = useState(false);
+  // const [savingEditOpen, setSavingEditOpen] = useState(false);
   const [editingSaving, setEditingSaving] = useState<FixedSaving | null>(null);
 
   const totalExpense = fixedExpenses.reduce(
     (sum, item) => sum + Number(item.amount),
-    0
+    0,
   );
   const totalSaving = fixedSavings.reduce(
     (sum, item) => sum + Number(item.amount),
-    0
+    0,
   );
 
   const handleEditExpense = (item: FixedExpense) => {
     setEditingExpense(item);
-    setExpenseEditOpen(true);
+    // setExpenseEditOpen(true);
   };
 
   const handleDeleteExpense = async (id: number) => {
@@ -62,7 +64,7 @@ export function AutomationContent({
 
   const handleEditSaving = (item: FixedSaving) => {
     setEditingSaving(item);
-    setSavingEditOpen(true);
+    // setSavingEditOpen(true);
   };
 
   const handleDeleteSaving = async (id: number) => {
@@ -74,6 +76,11 @@ export function AutomationContent({
     if (!result.success) {
       alert("삭제에 실패했습니다.");
     }
+  };
+
+  const handleClose = () => {
+    setEditingExpense(null);
+    setEditingSaving(null);
   };
 
   return (
@@ -115,33 +122,45 @@ export function AutomationContent({
 
       {/* 고정 지출 수정 시트 */}
       <FixedExpenseFormSheet
-        open={expenseEditOpen}
-        onOpenChange={setExpenseEditOpen}
+        open={!!editingExpense}
+        onOpenChange={handleClose}
         mode="edit"
-        initialData={editingExpense ? {
-          id: editingExpense.id,
-          title: editingExpense.title,
-          amount: editingExpense.amount,
-          scheduledDay: editingExpense.scheduledDay,
-          type: editingExpense.type,
-          categoryId: editingExpense.categoryId,
-          method: editingExpense.method,
-        } : undefined}
+        initialData={
+          editingExpense
+            ? {
+                id: editingExpense.id,
+                title: editingExpense.title,
+                amount: editingExpense.amount,
+                scheduledDay: editingExpense.scheduledDay,
+                type: editingExpense.type,
+                categoryId: editingExpense.categoryId,
+                method: editingExpense.method,
+                startDate: editingExpense.startDate,
+                endDate: editingExpense.endDate,
+              }
+            : undefined
+        }
         categories={categories}
       />
 
       {/* 고정 저축 수정 시트 */}
       <FixedSavingFormSheet
-        open={savingEditOpen}
-        onOpenChange={setSavingEditOpen}
+        open={!!editingSaving}
+        onOpenChange={handleClose}
         mode="edit"
-        initialData={editingSaving ? {
-          id: editingSaving.id,
-          title: editingSaving.title,
-          amount: editingSaving.amount,
-          scheduledDay: editingSaving.scheduledDay,
-          assetId: editingSaving.assetId,
-        } : undefined}
+        initialData={
+          editingSaving
+            ? {
+                id: editingSaving.id,
+                title: editingSaving.title,
+                amount: editingSaving.amount,
+                scheduledDay: editingSaving.scheduledDay,
+                assetId: editingSaving.assetId,
+                startDate: editingSaving.startDate,
+                endDate: editingSaving.endDate,
+              }
+            : undefined
+        }
         assets={assets}
       />
     </div>

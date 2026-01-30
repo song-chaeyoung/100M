@@ -2,16 +2,17 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { fixedExpenses, categories } from "@/db/schema";
+import { fixedExpenses, categories, transactions } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   fixedExpenseSchema,
   type FixedExpenseInput,
 } from "@/lib/validations/fixed-expense";
+import { getMonthsBetween } from "@/lib/utils";
 
 /**
- * 고정 지출 생성
+ * 고정 지출 생성 (+ 예정 거래 자동 생성)
  */
 export async function createFixedExpense(data: FixedExpenseInput) {
   try {
@@ -20,29 +21,57 @@ export async function createFixedExpense(data: FixedExpenseInput) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // Zod 검증
+    const userId = session.user.id;
+
     const parsed = fixedExpenseSchema.safeParse(data);
     if (!parsed.success) {
       return { success: false, error: parsed.error.flatten().fieldErrors };
     }
 
-    const result = await db
-      .insert(fixedExpenses)
-      .values({
-        userId: session.user.id,
-        title: parsed.data.title,
+    const result = await db.transaction(async (tx) => {
+      // 1. 고정 지출 생성
+      const [fixedExpense] = await tx
+        .insert(fixedExpenses)
+        .values({
+          userId,
+          title: parsed.data.title,
+          amount: parsed.data.amount.toString(),
+          scheduledDay: parsed.data.scheduledDay,
+          type: parsed.data.type,
+          categoryId: parsed.data.categoryId,
+          method: parsed.data.method,
+          startDate: `${parsed.data.startDate}-01`,
+          endDate: `${parsed.data.endDate}-01`,
+          isActive: true,
+        })
+        .returning();
+
+      // 2. 기간 내 예정 거래 생성
+      const months = getMonthsBetween(parsed.data.startDate, parsed.data.endDate);
+      const transactionsToInsert = months.map((month) => ({
+        userId,
+        type: "EXPENSE" as const,
         amount: parsed.data.amount.toString(),
-        scheduledDay: parsed.data.scheduledDay,
-        type: parsed.data.type,
+        date: `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`,
         categoryId: parsed.data.categoryId,
         method: parsed.data.method,
-        isActive: true,
-      })
-      .returning();
+        memo: parsed.data.title,
+        isFixed: true,
+        fixedExpenseId: fixedExpense.id,
+        isConfirmed: false,
+      }));
+
+      if (transactionsToInsert.length > 0) {
+        await tx.insert(transactions).values(transactionsToInsert);
+      }
+
+      return fixedExpense;
+    });
 
     revalidatePath("/automation");
+    revalidatePath("/");
 
-    return { success: true, data: result[0] };
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error creating fixed expense:", error);
     return { success: false, error: "Failed to create fixed expense" };
@@ -70,6 +99,8 @@ export async function getFixedExpenses() {
         categoryId: fixedExpenses.categoryId,
         method: fixedExpenses.method,
         isActive: fixedExpenses.isActive,
+        startDate: fixedExpenses.startDate,
+        endDate: fixedExpenses.endDate,
         lastGeneratedMonth: fixedExpenses.lastGeneratedMonth,
         createdAt: fixedExpenses.createdAt,
         updatedAt: fixedExpenses.updatedAt,
@@ -113,6 +144,8 @@ export async function getFixedExpenseById(id: number) {
         categoryId: fixedExpenses.categoryId,
         method: fixedExpenses.method,
         isActive: fixedExpenses.isActive,
+        startDate: fixedExpenses.startDate,
+        endDate: fixedExpenses.endDate,
         lastGeneratedMonth: fixedExpenses.lastGeneratedMonth,
         createdAt: fixedExpenses.createdAt,
         updatedAt: fixedExpenses.updatedAt,
@@ -141,7 +174,7 @@ export async function getFixedExpenseById(id: number) {
 }
 
 /**
- * 고정 지출 수정
+ * 고정 지출 수정 (+ 미확정 거래 재생성)
  */
 export async function updateFixedExpense(
   id: number,
@@ -153,7 +186,8 @@ export async function updateFixedExpense(
       return { success: false, error: "Unauthorized" };
     }
 
-    // 본인의 고정 지출인지 확인
+    const userId = session.user.id;
+
     const existing = await db
       .select()
       .from(fixedExpenses)
@@ -169,32 +203,79 @@ export async function updateFixedExpense(
       return { success: false, error: "Fixed expense not found" };
     }
 
-    // 부분 검증 (partial)
     const parsed = fixedExpenseSchema.partial().safeParse(data);
     if (!parsed.success) {
       return { success: false, error: parsed.error.flatten().fieldErrors };
     }
 
-    const updateData: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
+    const result = await db.transaction(async (tx) => {
+      // 1. 미확정 거래 삭제
+      await tx.delete(transactions).where(
+        and(
+          eq(transactions.fixedExpenseId, id),
+          eq(transactions.isConfirmed, false),
+        ),
+      );
 
-    if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
-    if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount.toString();
-    if (parsed.data.scheduledDay !== undefined) updateData.scheduledDay = parsed.data.scheduledDay;
-    if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
-    if (parsed.data.categoryId !== undefined) updateData.categoryId = parsed.data.categoryId;
-    if (parsed.data.method !== undefined) updateData.method = parsed.data.method;
+      // 2. 고정 지출 업데이트
+      const updateData: Record<string, unknown> = {
+        updatedAt: new Date(),
+      };
 
-    const result = await db
-      .update(fixedExpenses)
-      .set(updateData)
-      .where(eq(fixedExpenses.id, id))
-      .returning();
+      if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+      if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount.toString();
+      if (parsed.data.scheduledDay !== undefined) updateData.scheduledDay = parsed.data.scheduledDay;
+      if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
+      if (parsed.data.categoryId !== undefined) updateData.categoryId = parsed.data.categoryId;
+      if (parsed.data.method !== undefined) updateData.method = parsed.data.method;
+      if (parsed.data.startDate !== undefined) updateData.startDate = `${parsed.data.startDate}-01`;
+      if (parsed.data.endDate !== undefined) updateData.endDate = `${parsed.data.endDate}-01`;
+
+      const [updated] = await tx
+        .update(fixedExpenses)
+        .set(updateData)
+        .where(eq(fixedExpenses.id, id))
+        .returning();
+
+      // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만)
+      if (updated.isActive) {
+        const startMonth = parsed.data.startDate || existing[0].startDate?.slice(0, 7);
+        const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
+
+        if (startMonth && endMonth) {
+          const months = getMonthsBetween(startMonth, endMonth);
+          const scheduledDay = parsed.data.scheduledDay ?? existing[0].scheduledDay;
+          const amount = parsed.data.amount?.toString() ?? existing[0].amount;
+          const categoryId = parsed.data.categoryId ?? existing[0].categoryId;
+          const method = parsed.data.method ?? existing[0].method;
+          const title = parsed.data.title ?? existing[0].title;
+
+          const transactionsToInsert = months.map((month) => ({
+            userId,
+            type: "EXPENSE" as const,
+            amount,
+            date: `${month}-${String(scheduledDay).padStart(2, "0")}`,
+            categoryId,
+            method,
+            memo: title,
+            isFixed: true,
+            fixedExpenseId: id,
+            isConfirmed: false,
+          }));
+
+          if (transactionsToInsert.length > 0) {
+            await tx.insert(transactions).values(transactionsToInsert);
+          }
+        }
+      }
+
+      return updated;
+    });
 
     revalidatePath("/automation");
+    revalidatePath("/");
 
-    return { success: true, data: result[0] };
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error updating fixed expense:", error);
     return { success: false, error: "Failed to update fixed expense" };
@@ -202,7 +283,7 @@ export async function updateFixedExpense(
 }
 
 /**
- * 고정 지출 삭제
+ * 고정 지출 삭제 (+ 미확정 거래도 삭제)
  */
 export async function deleteFixedExpense(id: number) {
   try {
@@ -211,7 +292,6 @@ export async function deleteFixedExpense(id: number) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // 본인의 고정 지출인지 확인
     const existing = await db
       .select()
       .from(fixedExpenses)
@@ -227,9 +307,21 @@ export async function deleteFixedExpense(id: number) {
       return { success: false, error: "Fixed expense not found" };
     }
 
-    await db.delete(fixedExpenses).where(eq(fixedExpenses.id, id));
+    await db.transaction(async (tx) => {
+      // 1. 미확정 거래 삭제
+      await tx.delete(transactions).where(
+        and(
+          eq(transactions.fixedExpenseId, id),
+          eq(transactions.isConfirmed, false),
+        ),
+      );
+
+      // 2. 고정 지출 삭제
+      await tx.delete(fixedExpenses).where(eq(fixedExpenses.id, id));
+    });
 
     revalidatePath("/automation");
+    revalidatePath("/");
 
     return { success: true };
   } catch (error) {
@@ -239,7 +331,7 @@ export async function deleteFixedExpense(id: number) {
 }
 
 /**
- * 고정 지출 활성/비활성 토글
+ * 고정 지출 활성/비활성 토글 (+ 비활성화 시 미확정 거래 삭제)
  */
 export async function toggleFixedExpenseActive(id: number) {
   try {
@@ -248,14 +340,15 @@ export async function toggleFixedExpenseActive(id: number) {
       return { success: false, error: "Unauthorized" };
     }
 
-    // 본인의 고정 지출인지 확인
+    const userId = session.user.id;
+
     const existing = await db
       .select()
       .from(fixedExpenses)
       .where(
         and(
           eq(fixedExpenses.id, id),
-          eq(fixedExpenses.userId, session.user.id),
+          eq(fixedExpenses.userId, userId),
         ),
       )
       .limit(1);
@@ -264,18 +357,59 @@ export async function toggleFixedExpenseActive(id: number) {
       return { success: false, error: "Fixed expense not found" };
     }
 
-    const result = await db
-      .update(fixedExpenses)
-      .set({
-        isActive: !existing[0].isActive,
-        updatedAt: new Date(),
-      })
-      .where(eq(fixedExpenses.id, id))
-      .returning();
+    const newIsActive = !existing[0].isActive;
+
+    const result = await db.transaction(async (tx) => {
+      if (!newIsActive) {
+        // 비활성화 시 미확정 거래 삭제
+        await tx.delete(transactions).where(
+          and(
+            eq(transactions.fixedExpenseId, id),
+            eq(transactions.isConfirmed, false),
+          ),
+        );
+      } else {
+        // 활성화 시 예정 거래 재생성
+        const startMonth = existing[0].startDate?.slice(0, 7);
+        const endMonth = existing[0].endDate?.slice(0, 7);
+
+        if (startMonth && endMonth) {
+          const months = getMonthsBetween(startMonth, endMonth);
+          const transactionsToInsert = months.map((month) => ({
+            userId,
+            type: "EXPENSE" as const,
+            amount: existing[0].amount,
+            date: `${month}-${String(existing[0].scheduledDay).padStart(2, "0")}`,
+            categoryId: existing[0].categoryId,
+            method: existing[0].method,
+            memo: existing[0].title,
+            isFixed: true,
+            fixedExpenseId: id,
+            isConfirmed: false,
+          }));
+
+          if (transactionsToInsert.length > 0) {
+            await tx.insert(transactions).values(transactionsToInsert);
+          }
+        }
+      }
+
+      const [updated] = await tx
+        .update(fixedExpenses)
+        .set({
+          isActive: newIsActive,
+          updatedAt: new Date(),
+        })
+        .where(eq(fixedExpenses.id, id))
+        .returning();
+
+      return updated;
+    });
 
     revalidatePath("/automation");
+    revalidatePath("/");
 
-    return { success: true, data: result[0] };
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error toggling fixed expense:", error);
     return { success: false, error: "Failed to toggle fixed expense" };

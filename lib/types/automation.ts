@@ -29,6 +29,8 @@ export interface FixedExpense {
   categoryId: number | null;
   method: "CARD" | "CASH";
   isActive: boolean;
+  startDate: string | null;
+  endDate: string | null;
   lastGeneratedMonth: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +46,8 @@ export interface FixedSaving {
   scheduledDay: number;
   assetId: number | null;
   isActive: boolean;
+  startDate: string | null;
+  endDate: string | null;
   lastGeneratedMonth: string | null;
   createdAt: Date;
   updatedAt: Date;
