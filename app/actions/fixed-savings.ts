@@ -2,13 +2,19 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { fixedSavings, assets, assetTransactions, transactions } from "@/db/schema";
+import {
+  fixedSavings,
+  assets,
+  assetTransactions,
+  transactions,
+} from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   fixedSavingSchema,
   type FixedSavingInput,
 } from "@/lib/validations/fixed-saving";
+import { z } from "zod";
 import { getMonthsBetween } from "@/lib/utils";
 import dayjs from "dayjs";
 
@@ -26,76 +32,69 @@ export async function createFixedSaving(data: FixedSavingInput) {
 
     const parsed = fixedSavingSchema.safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: parsed.error.flatten().fieldErrors };
+      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
     }
 
     // 자산 계좌가 본인 소유인지 확인
     const asset = await db
       .select()
       .from(assets)
-      .where(
-        and(
-          eq(assets.id, parsed.data.assetId),
-          eq(assets.userId, userId),
-        ),
-      )
+      .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)))
       .limit(1);
 
     if (!asset[0]) {
       return { success: false, error: "Asset not found" };
     }
 
-    const result = await db.transaction(async (tx) => {
-      // 1. 고정 저축 생성
-      const [fixedSaving] = await tx
-        .insert(fixedSavings)
+    // 1. 고정 저축 생성
+    const [fixedSaving] = await db
+      .insert(fixedSavings)
+      .values({
+        userId,
+        title: parsed.data.title,
+        amount: parsed.data.amount.toString(),
+        scheduledDay: parsed.data.scheduledDay,
+        assetId: parsed.data.assetId,
+        startDate: `${parsed.data.startDate}-01`,
+        endDate: `${parsed.data.endDate}-01`,
+        isActive: true,
+      })
+      .returning();
+
+    // 2. 기간 내 예정 거래 생성
+    const months = getMonthsBetween(parsed.data.startDate, parsed.data.endDate);
+
+    for (const month of months) {
+      const date = `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`;
+
+      // 자산거래 생성
+      const [assetTx] = await db
+        .insert(assetTransactions)
         .values({
           userId,
-          title: parsed.data.title,
-          amount: parsed.data.amount.toString(),
-          scheduledDay: parsed.data.scheduledDay,
           assetId: parsed.data.assetId,
-          startDate: `${parsed.data.startDate}-01`,
-          endDate: `${parsed.data.endDate}-01`,
-          isActive: true,
-        })
-        .returning();
-
-      // 2. 기간 내 예정 거래 생성
-      const months = getMonthsBetween(parsed.data.startDate, parsed.data.endDate);
-
-      for (const month of months) {
-        const date = `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`;
-
-        // 자산거래 생성
-        const [assetTx] = await tx
-          .insert(assetTransactions)
-          .values({
-            userId,
-            assetId: parsed.data.assetId,
-            type: "DEPOSIT",
-            amount: parsed.data.amount.toString(),
-            date,
-            memo: parsed.data.title,
-            isFixed: true,
-            fixedSavingId: fixedSaving.id,
-          })
-          .returning();
-
-        // 연결된 일반거래(SAVING) 생성
-        await tx.insert(transactions).values({
-          userId,
-          type: "SAVING",
+          type: "DEPOSIT",
           amount: parsed.data.amount.toString(),
           date,
           memo: parsed.data.title,
           isFixed: true,
-          linkedAssetTransactionId: assetTx.id,
-        });
-      }
+          fixedSavingId: fixedSaving.id,
+        })
+        .returning();
 
-      return fixedSaving;
-    });
+      // 연결된 일반거래(SAVING) 생성
+      await db.insert(transactions).values({
+        userId,
+        type: "SAVING",
+        amount: parsed.data.amount.toString(),
+        date,
+        memo: parsed.data.title,
+        isFixed: true,
+        linkedAssetTransactionId: assetTx.id,
+      });
+    }
+
+    const result = fixedSaving;
 
     revalidatePath("/automation");
     revalidatePath("/");
@@ -103,7 +102,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
     return { success: true, data: result };
   } catch (error) {
     console.error("Error creating fixed saving:", error);
-    return { success: false, error: "Failed to create fixed saving" };
+    return { success: false, error: "고정 저축 생성에 실패했습니다." };
   }
 }
 
@@ -145,7 +144,7 @@ export async function getFixedSavings() {
     return result;
   } catch (error) {
     console.error("Error fetching fixed savings:", error);
-    return [];
+    return { success: false, error: "고정 저축 조회에 실패했습니다." };
   }
 }
 
@@ -182,17 +181,14 @@ export async function getFixedSavingById(id: number) {
       .from(fixedSavings)
       .leftJoin(assets, eq(fixedSavings.assetId, assets.id))
       .where(
-        and(
-          eq(fixedSavings.id, id),
-          eq(fixedSavings.userId, session.user.id),
-        ),
+        and(eq(fixedSavings.id, id), eq(fixedSavings.userId, session.user.id)),
       )
       .limit(1);
 
     return result[0] || null;
   } catch (error) {
     console.error("Error fetching fixed saving:", error);
-    return null;
+    return { success: false, error: "고정 저축 조회에 실패했습니다." };
   }
 }
 
@@ -214,12 +210,7 @@ export async function updateFixedSaving(
     const existing = await db
       .select()
       .from(fixedSavings)
-      .where(
-        and(
-          eq(fixedSavings.id, id),
-          eq(fixedSavings.userId, userId),
-        ),
-      )
+      .where(and(eq(fixedSavings.id, id), eq(fixedSavings.userId, userId)))
       .limit(1);
 
     if (!existing[0]) {
@@ -228,7 +219,7 @@ export async function updateFixedSaving(
 
     const parsed = fixedSavingSchema.partial().safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: parsed.error.flatten().fieldErrors };
+      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
     }
 
     // assetId가 변경되면 본인 소유인지 확인
@@ -237,109 +228,113 @@ export async function updateFixedSaving(
         .select()
         .from(assets)
         .where(
-          and(
-            eq(assets.id, parsed.data.assetId),
-            eq(assets.userId, userId),
-          ),
+          and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)),
         )
         .limit(1);
 
       if (!asset[0]) {
-        return { success: false, error: "Asset not found" };
+        return { success: false, error: "자산 계좌가 본인 소유가 아닙니다." };
       }
     }
 
-    const result = await db.transaction(async (tx) => {
-      // 1. 미래 날짜의 자산거래 삭제 (연결된 transactions도 삭제)
-      // 먼저 삭제할 assetTransaction ID들 조회
-      const today = dayjs().format("YYYY-MM-DD");
-      const assetTxToDelete = await tx
-        .select({ id: assetTransactions.id })
-        .from(assetTransactions)
-        .where(
-          and(
-            eq(assetTransactions.fixedSavingId, id),
-            gte(assetTransactions.date, today),
-          ),
-        );
-
-      // 연결된 transactions 삭제
-      for (const atx of assetTxToDelete) {
-        await tx.delete(transactions).where(
-          eq(transactions.linkedAssetTransactionId, atx.id),
-        );
-      }
-
-      // assetTransactions 삭제
-      await tx.delete(assetTransactions).where(
+    // 1. 미래 날짜의 자산거래 삭제 (연결된 transactions도 삭제)
+    // 먼저 삭제할 assetTransaction ID들 조회
+    const today = dayjs().format("YYYY-MM-DD");
+    const assetTxToDelete = await db
+      .select({ id: assetTransactions.id })
+      .from(assetTransactions)
+      .where(
         and(
           eq(assetTransactions.fixedSavingId, id),
           gte(assetTransactions.date, today),
         ),
       );
 
-      // 2. 고정 저축 업데이트
-      const updateData: Record<string, unknown> = {
-        updatedAt: new Date(),
-      };
+    // 연결된 transactions 삭제
+    for (const atx of assetTxToDelete) {
+      await db
+        .delete(transactions)
+        .where(eq(transactions.linkedAssetTransactionId, atx.id));
+    }
 
-      if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
-      if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount.toString();
-      if (parsed.data.scheduledDay !== undefined) updateData.scheduledDay = parsed.data.scheduledDay;
-      if (parsed.data.assetId !== undefined) updateData.assetId = parsed.data.assetId;
-      if (parsed.data.startDate !== undefined) updateData.startDate = `${parsed.data.startDate}-01`;
-      if (parsed.data.endDate !== undefined) updateData.endDate = `${parsed.data.endDate}-01`;
+    // assetTransactions 삭제
+    await db
+      .delete(assetTransactions)
+      .where(
+        and(
+          eq(assetTransactions.fixedSavingId, id),
+          gte(assetTransactions.date, today),
+        ),
+      );
 
-      const [updated] = await tx
-        .update(fixedSavings)
-        .set(updateData)
-        .where(eq(fixedSavings.id, id))
-        .returning();
+    // 2. 고정 저축 업데이트
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
 
-      // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만)
-      if (updated.isActive) {
-        const startMonth = parsed.data.startDate || existing[0].startDate?.slice(0, 7);
-        const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
+    if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+    if (parsed.data.amount !== undefined)
+      updateData.amount = parsed.data.amount.toString();
+    if (parsed.data.scheduledDay !== undefined)
+      updateData.scheduledDay = parsed.data.scheduledDay;
+    if (parsed.data.assetId !== undefined)
+      updateData.assetId = parsed.data.assetId;
+    if (parsed.data.startDate !== undefined)
+      updateData.startDate = `${parsed.data.startDate}-01`;
+    if (parsed.data.endDate !== undefined)
+      updateData.endDate = `${parsed.data.endDate}-01`;
 
-        if (startMonth && endMonth) {
-          const months = getMonthsBetween(startMonth, endMonth);
-          const scheduledDay = parsed.data.scheduledDay ?? existing[0].scheduledDay;
-          const amount = parsed.data.amount?.toString() ?? existing[0].amount;
-          const assetId = parsed.data.assetId ?? existing[0].assetId;
-          const title = parsed.data.title ?? existing[0].title;
+    const [updated] = await db
+      .update(fixedSavings)
+      .set(updateData)
+      .where(eq(fixedSavings.id, id))
+      .returning();
 
-          for (const month of months) {
-            const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+    // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만)
+    if (updated.isActive) {
+      const startMonth =
+        parsed.data.startDate || existing[0].startDate?.slice(0, 7);
+      const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
 
-            const [assetTx] = await tx
-              .insert(assetTransactions)
-              .values({
-                userId,
-                assetId,
-                type: "DEPOSIT",
-                amount,
-                date,
-                memo: title,
-                isFixed: true,
-                fixedSavingId: id,
-              })
-              .returning();
+      if (startMonth && endMonth) {
+        const months = getMonthsBetween(startMonth, endMonth);
+        const scheduledDay =
+          parsed.data.scheduledDay ?? existing[0].scheduledDay;
+        const amount = parsed.data.amount?.toString() ?? existing[0].amount;
+        const assetId = parsed.data.assetId ?? existing[0].assetId;
+        const title = parsed.data.title ?? existing[0].title;
 
-            await tx.insert(transactions).values({
+        for (const month of months) {
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+
+          const [assetTx] = await db
+            .insert(assetTransactions)
+            .values({
               userId,
-              type: "SAVING",
+              assetId,
+              type: "DEPOSIT",
               amount,
               date,
               memo: title,
               isFixed: true,
-              linkedAssetTransactionId: assetTx.id,
-            });
-          }
+              fixedSavingId: id,
+            })
+            .returning();
+
+          await db.insert(transactions).values({
+            userId,
+            type: "SAVING",
+            amount,
+            date,
+            memo: title,
+            isFixed: true,
+            linkedAssetTransactionId: assetTx.id,
+          });
         }
       }
+    }
 
-      return updated;
-    });
+    const result = updated;
 
     revalidatePath("/automation");
     revalidatePath("/");
@@ -347,7 +342,7 @@ export async function updateFixedSaving(
     return { success: true, data: result };
   } catch (error) {
     console.error("Error updating fixed saving:", error);
-    return { success: false, error: "Failed to update fixed saving" };
+    return { success: false, error: "고정 저축 수정에 실패했습니다." };
   }
 }
 
@@ -365,46 +360,43 @@ export async function deleteFixedSaving(id: number) {
       .select()
       .from(fixedSavings)
       .where(
-        and(
-          eq(fixedSavings.id, id),
-          eq(fixedSavings.userId, session.user.id),
-        ),
+        and(eq(fixedSavings.id, id), eq(fixedSavings.userId, session.user.id)),
       )
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Fixed saving not found" };
+      return { success: false, error: "고정 저축이 존재하지 않습니다." };
     }
 
-    await db.transaction(async (tx) => {
-      // 1. 미래 날짜의 자산거래와 연결된 transactions 삭제
-      const today = dayjs().format("YYYY-MM-DD");
-      const assetTxToDelete = await tx
-        .select({ id: assetTransactions.id })
-        .from(assetTransactions)
-        .where(
-          and(
-            eq(assetTransactions.fixedSavingId, id),
-            gte(assetTransactions.date, today),
-          ),
-        );
-
-      for (const atx of assetTxToDelete) {
-        await tx.delete(transactions).where(
-          eq(transactions.linkedAssetTransactionId, atx.id),
-        );
-      }
-
-      await tx.delete(assetTransactions).where(
+    // 1. 미래 날짜의 자산거래와 연결된 transactions 삭제
+    const today = dayjs().format("YYYY-MM-DD");
+    const assetTxToDelete = await db
+      .select({ id: assetTransactions.id })
+      .from(assetTransactions)
+      .where(
         and(
           eq(assetTransactions.fixedSavingId, id),
           gte(assetTransactions.date, today),
         ),
       );
 
-      // 2. 고정 저축 삭제
-      await tx.delete(fixedSavings).where(eq(fixedSavings.id, id));
-    });
+    for (const atx of assetTxToDelete) {
+      await db
+        .delete(transactions)
+        .where(eq(transactions.linkedAssetTransactionId, atx.id));
+    }
+
+    await db
+      .delete(assetTransactions)
+      .where(
+        and(
+          eq(assetTransactions.fixedSavingId, id),
+          gte(assetTransactions.date, today),
+        ),
+      );
+
+    // 2. 고정 저축 삭제
+    await db.delete(fixedSavings).where(eq(fixedSavings.id, id));
 
     revalidatePath("/automation");
     revalidatePath("/");
@@ -412,7 +404,7 @@ export async function deleteFixedSaving(id: number) {
     return { success: true };
   } catch (error) {
     console.error("Error deleting fixed saving:", error);
-    return { success: false, error: "Failed to delete fixed saving" };
+    return { success: false, error: "고정 저축 삭제에 실패했습니다." };
   }
 }
 
@@ -431,12 +423,7 @@ export async function toggleFixedSavingActive(id: number) {
     const existing = await db
       .select()
       .from(fixedSavings)
-      .where(
-        and(
-          eq(fixedSavings.id, id),
-          eq(fixedSavings.userId, userId),
-        ),
-      )
+      .where(and(eq(fixedSavings.id, id), eq(fixedSavings.userId, userId)))
       .limit(1);
 
     if (!existing[0]) {
@@ -445,81 +432,79 @@ export async function toggleFixedSavingActive(id: number) {
 
     const newIsActive = !existing[0].isActive;
 
-    const result = await db.transaction(async (tx) => {
-      if (!newIsActive) {
-        // 비활성화 시 미래 날짜의 거래 삭제
-        const today = dayjs().format("YYYY-MM-DD");
-        const assetTxToDelete = await tx
-          .select({ id: assetTransactions.id })
-          .from(assetTransactions)
-          .where(
-            and(
-              eq(assetTransactions.fixedSavingId, id),
-              gte(assetTransactions.date, today),
-            ),
-          );
-
-        for (const atx of assetTxToDelete) {
-          await tx.delete(transactions).where(
-            eq(transactions.linkedAssetTransactionId, atx.id),
-          );
-        }
-
-        await tx.delete(assetTransactions).where(
+    if (!newIsActive) {
+      // 비활성화 시 미래 날짜의 거래 삭제
+      const today = dayjs().format("YYYY-MM-DD");
+      const assetTxToDelete = await db
+        .select({ id: assetTransactions.id })
+        .from(assetTransactions)
+        .where(
           and(
             eq(assetTransactions.fixedSavingId, id),
             gte(assetTransactions.date, today),
           ),
         );
-      } else {
-        // 활성화 시 예정 거래 재생성
-        const startMonth = existing[0].startDate?.slice(0, 7);
-        const endMonth = existing[0].endDate?.slice(0, 7);
 
-        if (startMonth && endMonth) {
-          const months = getMonthsBetween(startMonth, endMonth);
+      for (const atx of assetTxToDelete) {
+        await db
+          .delete(transactions)
+          .where(eq(transactions.linkedAssetTransactionId, atx.id));
+      }
 
-          for (const month of months) {
-            const date = `${month}-${String(existing[0].scheduledDay).padStart(2, "0")}`;
+      await db
+        .delete(assetTransactions)
+        .where(
+          and(
+            eq(assetTransactions.fixedSavingId, id),
+            gte(assetTransactions.date, today),
+          ),
+        );
+    } else {
+      // 활성화 시 예정 거래 재생성
+      const startMonth = existing[0].startDate?.slice(0, 7);
+      const endMonth = existing[0].endDate?.slice(0, 7);
 
-            const [assetTx] = await tx
-              .insert(assetTransactions)
-              .values({
-                userId,
-                assetId: existing[0].assetId,
-                type: "DEPOSIT",
-                amount: existing[0].amount,
-                date,
-                memo: existing[0].title,
-                isFixed: true,
-                fixedSavingId: id,
-              })
-              .returning();
+      if (startMonth && endMonth) {
+        const months = getMonthsBetween(startMonth, endMonth);
 
-            await tx.insert(transactions).values({
+        for (const month of months) {
+          const date = `${month}-${String(existing[0].scheduledDay).padStart(2, "0")}`;
+
+          const [assetTx] = await db
+            .insert(assetTransactions)
+            .values({
               userId,
-              type: "SAVING",
+              assetId: existing[0].assetId,
+              type: "DEPOSIT",
               amount: existing[0].amount,
               date,
               memo: existing[0].title,
               isFixed: true,
-              linkedAssetTransactionId: assetTx.id,
-            });
-          }
+              fixedSavingId: id,
+            })
+            .returning();
+
+          await db.insert(transactions).values({
+            userId,
+            type: "SAVING",
+            amount: existing[0].amount,
+            date,
+            memo: existing[0].title,
+            isFixed: true,
+            linkedAssetTransactionId: assetTx.id,
+          });
         }
       }
+    }
 
-      const [updated] = await tx
-        .update(fixedSavings)
-        .set({
-          isActive: newIsActive,
-          updatedAt: new Date(),
-        })
-        .where(eq(fixedSavings.id, id))
-        .returning();
-
-      return updated;
-    });
+    const [result] = await db
+      .update(fixedSavings)
+      .set({
+        isActive: newIsActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(fixedSavings.id, id))
+      .returning();
 
     revalidatePath("/automation");
     revalidatePath("/");
@@ -527,6 +512,9 @@ export async function toggleFixedSavingActive(id: number) {
     return { success: true, data: result };
   } catch (error) {
     console.error("Error toggling fixed saving:", error);
-    return { success: false, error: "Failed to toggle fixed saving" };
+    return {
+      success: false,
+      error: "고정 저축 활성화/비활성화에 실패했습니다.",
+    };
   }
 }
