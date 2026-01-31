@@ -63,7 +63,6 @@ export function TransactionFormSheet({
       categoryId: undefined,
       memo: "",
       date: new Date(selectedDate),
-      isConfirmed: true,
     },
   });
 
@@ -80,7 +79,6 @@ export function TransactionFormSheet({
           categoryId: initialData.categoryId ?? undefined,
           memo: initialData.memo || "",
           date: initialData.date,
-          isConfirmed: initialData.isConfirmed,
         });
       } else {
         form.reset({
@@ -90,7 +88,6 @@ export function TransactionFormSheet({
           categoryId: undefined,
           memo: "",
           date: new Date(selectedDate),
-          isConfirmed: true,
         });
       }
     }
@@ -143,7 +140,6 @@ export function TransactionFormSheet({
         date: dayjs(data.date).format("YYYY-MM-DD"),
         categoryId: data.categoryId,
         memo: data.memo || "",
-        isConfirmed: data.isConfirmed,
       };
 
       let result;
@@ -344,26 +340,6 @@ export function TransactionFormSheet({
               />
             )}
           />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="isConfirmed">실제 발생한 거래</Label>
-            <Controller
-              name="isConfirmed"
-              control={control}
-              render={({ field }) => (
-                <Switch
-                  id="isConfirmed"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              )}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            꺼두면 목표 금액 계산에 포함되지 않습니다
-          </p>
         </div>
 
         <div className="flex gap-2 pt-4">

@@ -222,10 +222,6 @@ export const transactions = pgTable(
       { onDelete: "set null" },
     ),
 
-    // 확정 여부 (true: 실제 발생, false: 예정됨)
-    // 순자산 계산 시 isConfirmed = true 인 것만 포함
-    isConfirmed: boolean("is_confirmed").default(true).notNull(),
-
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -236,7 +232,6 @@ export const transactions = pgTable(
     linkedAssetTxIdx: index("transaction_linked_asset_tx_idx").on(
       t.linkedAssetTransactionId,
     ),
-    confirmedIdx: index("transaction_confirmed_idx").on(t.isConfirmed),
   }),
 );
 
@@ -350,10 +345,6 @@ export const assetTransactions = pgTable(
       onDelete: "set null",
     }),
 
-    // 확정 여부 (true: 실제 발생, false: 예정됨)
-    // 순자산 계산 시 isConfirmed = true 인 것만 포함
-    isConfirmed: boolean("is_confirmed").default(true).notNull(),
-
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -363,7 +354,6 @@ export const assetTransactions = pgTable(
     fixedSavingIdx: index("asset_transaction_fixed_saving_idx").on(
       t.fixedSavingId,
     ),
-    confirmedIdx: index("asset_transaction_confirmed_idx").on(t.isConfirmed),
   }),
 );
 

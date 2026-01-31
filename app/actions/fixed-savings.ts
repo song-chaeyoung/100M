@@ -3,13 +3,14 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { fixedSavings, assets, assetTransactions, transactions } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   fixedSavingSchema,
   type FixedSavingInput,
 } from "@/lib/validations/fixed-saving";
 import { getMonthsBetween } from "@/lib/utils";
+import dayjs from "dayjs";
 
 /**
  * 고정 저축 생성 (+ 예정 거래 자동 생성)
@@ -78,7 +79,6 @@ export async function createFixedSaving(data: FixedSavingInput) {
             memo: parsed.data.title,
             isFixed: true,
             fixedSavingId: fixedSaving.id,
-            isConfirmed: false,
           })
           .returning();
 
@@ -91,7 +91,6 @@ export async function createFixedSaving(data: FixedSavingInput) {
           memo: parsed.data.title,
           isFixed: true,
           linkedAssetTransactionId: assetTx.id,
-          isConfirmed: false,
         });
       }
 
@@ -251,15 +250,16 @@ export async function updateFixedSaving(
     }
 
     const result = await db.transaction(async (tx) => {
-      // 1. 미확정 자산거래 삭제 (연결된 transactions는 CASCADE로 처리되거나 별도 삭제)
+      // 1. 미래 날짜의 자산거래 삭제 (연결된 transactions도 삭제)
       // 먼저 삭제할 assetTransaction ID들 조회
+      const today = dayjs().format("YYYY-MM-DD");
       const assetTxToDelete = await tx
         .select({ id: assetTransactions.id })
         .from(assetTransactions)
         .where(
           and(
             eq(assetTransactions.fixedSavingId, id),
-            eq(assetTransactions.isConfirmed, false),
+            gte(assetTransactions.date, today),
           ),
         );
 
@@ -274,7 +274,7 @@ export async function updateFixedSaving(
       await tx.delete(assetTransactions).where(
         and(
           eq(assetTransactions.fixedSavingId, id),
-          eq(assetTransactions.isConfirmed, false),
+          gte(assetTransactions.date, today),
         ),
       );
 
@@ -322,7 +322,6 @@ export async function updateFixedSaving(
                 memo: title,
                 isFixed: true,
                 fixedSavingId: id,
-                isConfirmed: false,
               })
               .returning();
 
@@ -334,7 +333,6 @@ export async function updateFixedSaving(
               memo: title,
               isFixed: true,
               linkedAssetTransactionId: assetTx.id,
-              isConfirmed: false,
             });
           }
         }
@@ -379,14 +377,15 @@ export async function deleteFixedSaving(id: number) {
     }
 
     await db.transaction(async (tx) => {
-      // 1. 미확정 자산거래와 연결된 transactions 삭제
+      // 1. 미래 날짜의 자산거래와 연결된 transactions 삭제
+      const today = dayjs().format("YYYY-MM-DD");
       const assetTxToDelete = await tx
         .select({ id: assetTransactions.id })
         .from(assetTransactions)
         .where(
           and(
             eq(assetTransactions.fixedSavingId, id),
-            eq(assetTransactions.isConfirmed, false),
+            gte(assetTransactions.date, today),
           ),
         );
 
@@ -399,7 +398,7 @@ export async function deleteFixedSaving(id: number) {
       await tx.delete(assetTransactions).where(
         and(
           eq(assetTransactions.fixedSavingId, id),
-          eq(assetTransactions.isConfirmed, false),
+          gte(assetTransactions.date, today),
         ),
       );
 
@@ -448,14 +447,15 @@ export async function toggleFixedSavingActive(id: number) {
 
     const result = await db.transaction(async (tx) => {
       if (!newIsActive) {
-        // 비활성화 시 미확정 거래 삭제
+        // 비활성화 시 미래 날짜의 거래 삭제
+        const today = dayjs().format("YYYY-MM-DD");
         const assetTxToDelete = await tx
           .select({ id: assetTransactions.id })
           .from(assetTransactions)
           .where(
             and(
               eq(assetTransactions.fixedSavingId, id),
-              eq(assetTransactions.isConfirmed, false),
+              gte(assetTransactions.date, today),
             ),
           );
 
@@ -468,7 +468,7 @@ export async function toggleFixedSavingActive(id: number) {
         await tx.delete(assetTransactions).where(
           and(
             eq(assetTransactions.fixedSavingId, id),
-            eq(assetTransactions.isConfirmed, false),
+            gte(assetTransactions.date, today),
           ),
         );
       } else {
@@ -493,7 +493,6 @@ export async function toggleFixedSavingActive(id: number) {
                 memo: existing[0].title,
                 isFixed: true,
                 fixedSavingId: id,
-                isConfirmed: false,
               })
               .returning();
 
@@ -505,7 +504,6 @@ export async function toggleFixedSavingActive(id: number) {
               memo: existing[0].title,
               isFixed: true,
               linkedAssetTransactionId: assetTx.id,
-              isConfirmed: false,
             });
           }
         }

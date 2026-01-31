@@ -3,13 +3,14 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { fixedExpenses, categories, transactions } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   fixedExpenseSchema,
   type FixedExpenseInput,
 } from "@/lib/validations/fixed-expense";
 import { getMonthsBetween } from "@/lib/utils";
+import dayjs from "dayjs";
 
 /**
  * 고정 지출 생성 (+ 예정 거래 자동 생성)
@@ -58,7 +59,6 @@ export async function createFixedExpense(data: FixedExpenseInput) {
         memo: parsed.data.title,
         isFixed: true,
         fixedExpenseId: fixedExpense.id,
-        isConfirmed: false,
       }));
 
       if (transactionsToInsert.length > 0) {
@@ -209,11 +209,12 @@ export async function updateFixedExpense(
     }
 
     const result = await db.transaction(async (tx) => {
-      // 1. 미확정 거래 삭제
+      // 1. 미래 날짜의 고정 지출 거래 삭제 (오늘 이후)
+      const today = dayjs().format("YYYY-MM-DD");
       await tx.delete(transactions).where(
         and(
           eq(transactions.fixedExpenseId, id),
-          eq(transactions.isConfirmed, false),
+          gte(transactions.date, today),
         ),
       );
 
@@ -260,7 +261,6 @@ export async function updateFixedExpense(
             memo: title,
             isFixed: true,
             fixedExpenseId: id,
-            isConfirmed: false,
           }));
 
           if (transactionsToInsert.length > 0) {
@@ -308,11 +308,12 @@ export async function deleteFixedExpense(id: number) {
     }
 
     await db.transaction(async (tx) => {
-      // 1. 미확정 거래 삭제
+      // 1. 미래 날짜의 고정 지출 거래 삭제
+      const today = dayjs().format("YYYY-MM-DD");
       await tx.delete(transactions).where(
         and(
           eq(transactions.fixedExpenseId, id),
-          eq(transactions.isConfirmed, false),
+          gte(transactions.date, today),
         ),
       );
 
@@ -361,11 +362,12 @@ export async function toggleFixedExpenseActive(id: number) {
 
     const result = await db.transaction(async (tx) => {
       if (!newIsActive) {
-        // 비활성화 시 미확정 거래 삭제
+        // 비활성화 시 미래 날짜의 거래 삭제
+        const today = dayjs().format("YYYY-MM-DD");
         await tx.delete(transactions).where(
           and(
             eq(transactions.fixedExpenseId, id),
-            eq(transactions.isConfirmed, false),
+            gte(transactions.date, today),
           ),
         );
       } else {
@@ -385,7 +387,6 @@ export async function toggleFixedExpenseActive(id: number) {
             memo: existing[0].title,
             isFixed: true,
             fixedExpenseId: id,
-            isConfirmed: false,
           }));
 
           if (transactionsToInsert.length > 0) {

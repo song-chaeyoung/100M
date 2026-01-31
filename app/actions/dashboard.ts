@@ -40,6 +40,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     const userId = session.user.id;
     const now = dayjs();
+    const today = now.format("YYYY-MM-DD");
     const monthStart = now.startOf("month").format("YYYY-MM-DD");
     const monthEnd = now.endOf("month").format("YYYY-MM-DD");
 
@@ -58,7 +59,12 @@ export async function getDashboardData(): Promise<DashboardData> {
         totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'EXPENSE' THEN ${transactions.amount} ELSE 0 END), 0)`,
       })
       .from(transactions)
-      .where(eq(transactions.userId, userId));
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          lte(transactions.date, today)
+        )
+      );
 
     const [assetSummary] = await db
       .select({

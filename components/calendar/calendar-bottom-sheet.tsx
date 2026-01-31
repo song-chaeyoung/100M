@@ -212,7 +212,6 @@ export function CalendarBottomSheet({
                 categoryId: selectedTransaction.categoryId,
                 memo: selectedTransaction.memo || "",
                 date: new Date(selectedTransaction.date),
-                isConfirmed: selectedTransaction.isConfirmed,
               }
             : undefined
         }
