@@ -28,7 +28,7 @@ function getBalanceOperation(
 /**
  * 자산 잔액 업데이트
  */
-async function updateAssetBalance(
+export async function updateAssetBalance(
   assetId: number,
   amount: string,
   operation: "add" | "subtract"

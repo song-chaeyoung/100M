@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { getMonthsBetween } from "@/lib/utils";
 import dayjs from "dayjs";
+import { updateAssetBalance } from "./asset-transactions";
 
 /**
  * 고정 저축 생성 (+ 예정 거래 자동 생성)
@@ -82,6 +83,16 @@ export async function createFixedSaving(data: FixedSavingInput) {
         })
         .returning();
 
+      // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
+      const today = dayjs().format("YYYY-MM-DD");
+      if (date <= today) {
+        await updateAssetBalance(
+          parsed.data.assetId,
+          parsed.data.amount.toString(),
+          "add"
+        );
+      }
+
       // 연결된 일반거래(SAVING) 생성
       await db.insert(transactions).values({
         userId,
@@ -97,6 +108,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
     const result = fixedSaving;
 
     revalidatePath("/automation");
+    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -321,6 +333,11 @@ export async function updateFixedSaving(
             })
             .returning();
 
+          // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
+          if (date <= today) {
+            await updateAssetBalance(assetId, amount, "add");
+          }
+
           await db.insert(transactions).values({
             userId,
             type: "SAVING",
@@ -337,6 +354,7 @@ export async function updateFixedSaving(
     const result = updated;
 
     revalidatePath("/automation");
+    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -431,10 +449,10 @@ export async function toggleFixedSavingActive(id: number) {
     }
 
     const newIsActive = !existing[0].isActive;
+    const today = dayjs().format("YYYY-MM-DD");
 
     if (!newIsActive) {
       // 비활성화 시 미래 날짜의 거래 삭제
-      const today = dayjs().format("YYYY-MM-DD");
       const assetTxToDelete = await db
         .select({ id: assetTransactions.id })
         .from(assetTransactions)
@@ -484,6 +502,15 @@ export async function toggleFixedSavingActive(id: number) {
             })
             .returning();
 
+          // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
+          if (date <= today) {
+            await updateAssetBalance(
+              existing[0].assetId,
+              existing[0].amount,
+              "add"
+            );
+          }
+
           await db.insert(transactions).values({
             userId,
             type: "SAVING",
@@ -507,6 +534,7 @@ export async function toggleFixedSavingActive(id: number) {
       .returning();
 
     revalidatePath("/automation");
+    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
