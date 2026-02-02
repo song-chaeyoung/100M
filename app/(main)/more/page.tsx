@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Monitor, Moon, Sun, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -154,11 +155,21 @@ export default function MorePage() {
         <section>
           <h3 className="mb-2 text-sm font-bold text-muted-foreground">기타</h3>
           <ul className="space-y-1">
-            <li className="cursor-pointer py-2 text-base hover:text-primary">
-              앱 정보
+            <li>
+              <Link
+                href="/more/app-info"
+                className="block cursor-pointer py-2 text-base hover:text-primary"
+              >
+                앱 정보
+              </Link>
             </li>
-            <li className="cursor-pointer py-2 text-base hover:text-primary">
-              개인정보 처리방침
+            <li>
+              <Link
+                href="/more/privacy"
+                className="block cursor-pointer py-2 text-base hover:text-primary"
+              >
+                개인정보 처리방침
+              </Link>
             </li>
             <li
               className="cursor-pointer py-2 text-base text-red-500 hover:text-red-600"
