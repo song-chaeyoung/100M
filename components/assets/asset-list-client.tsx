@@ -8,26 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { AssetFormSheet } from "./asset-form-sheet";
 import type { Asset } from "@/lib/validations/asset";
-
-const ASSET_TYPE_LABELS: Record<string, string> = {
-  SAVINGS: "예금",
-  DEPOSIT: "적금",
-  STOCK: "주식",
-  FUND: "펀드",
-  CRYPTO: "암호화폐",
-  REAL_ESTATE: "부동산",
-  OTHER: "기타",
-};
-
-const ASSET_TYPE_ICONS: Record<string, string> = {
-  SAVINGS: "🏦",
-  DEPOSIT: "💰",
-  STOCK: "📈",
-  FUND: "📊",
-  CRYPTO: "🪙",
-  REAL_ESTATE: "🏠",
-  OTHER: "💼",
-};
+import { ASSET_TYPE_ICONS, ASSET_TYPE_LABELS } from "@/lib/const";
 
 interface AssetListClientProps {
   assets: Asset[];
@@ -55,10 +36,7 @@ export function AssetListClient({ assets }: AssetListClientProps) {
             자산 추가
           </Button>
         </div>
-        <AssetFormSheet
-          open={formSheetOpen}
-          onOpenChange={setFormSheetOpen}
-        />
+        <AssetFormSheet open={formSheetOpen} onOpenChange={setFormSheetOpen} />
       </>
     );
   }
@@ -95,15 +73,16 @@ export function AssetListClient({ assets }: AssetListClientProps) {
       )}
 
       {/* 자산 추가 버튼 */}
-      <Button className="w-full" size="lg" onClick={() => setFormSheetOpen(true)}>
+      <Button
+        className="w-full"
+        size="lg"
+        onClick={() => setFormSheetOpen(true)}
+      >
         <Plus className="h-4 w-4 mr-2" />
         자산 추가
       </Button>
 
-      <AssetFormSheet
-        open={formSheetOpen}
-        onOpenChange={setFormSheetOpen}
-      />
+      <AssetFormSheet open={formSheetOpen} onOpenChange={setFormSheetOpen} />
     </div>
   );
 }

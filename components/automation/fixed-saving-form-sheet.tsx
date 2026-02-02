@@ -22,6 +22,7 @@ import {
 } from "@/app/actions/fixed-savings";
 import { toast } from "sonner";
 import dayjs from "dayjs";
+import { ASSET_TYPE_ICONS, ASSET_TYPE_LABELS } from "@/lib/const";
 
 // 기본 기간 (현재 월 ~ 12개월 후)
 const getDefaultDates = () => ({
@@ -33,7 +34,16 @@ interface FixedSavingFormSheetProps {
   open: boolean;
   onOpenChange: () => void;
   mode: "create" | "edit";
-  initialData?: Pick<FixedSaving, "id" | "title" | "amount" | "scheduledDay" | "assetId" | "startDate" | "endDate">;
+  initialData?: Pick<
+    FixedSaving,
+    | "id"
+    | "title"
+    | "amount"
+    | "scheduledDay"
+    | "assetId"
+    | "startDate"
+    | "endDate"
+  >;
   assets: Asset[];
 }
 
@@ -63,8 +73,10 @@ export function FixedSavingFormSheet({
           amount: Number(initialData.amount),
           scheduledDay: initialData.scheduledDay,
           assetId: initialData.assetId ?? undefined,
-          startDate: initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
-          endDate: initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
+          startDate:
+            initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
+          endDate:
+            initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
         });
       } else {
         form.reset({
@@ -104,7 +116,7 @@ export function FixedSavingFormSheet({
         toast.success(
           mode === "create"
             ? "고정 저축이 추가되었습니다."
-            : "고정 저축이 수정되었습니다."
+            : "고정 저축이 수정되었습니다.",
         );
       } else {
         toast.error("저장에 실패했습니다.");
@@ -179,7 +191,9 @@ export function FixedSavingFormSheet({
               <div className="relative">
                 <Input
                   type="text"
-                  value={field.value ? formatAmount(field.value.toString()) : ""}
+                  value={
+                    field.value ? formatAmount(field.value.toString()) : ""
+                  }
                   onChange={(e) => {
                     const value = e.target.value.replace(/,/g, "");
                     field.onChange(value ? Number(value) : 0);
@@ -263,13 +277,16 @@ export function FixedSavingFormSheet({
                       key={asset.id}
                       onClick={() => field.onChange(asset.id)}
                       className={cn(
-                        "p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
+                        "p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors flex items-center justify-between",
                         field.value === asset.id &&
-                          "bg-primary text-primary-foreground"
+                          "bg-primary text-primary-foreground",
                       )}
                     >
                       <div className="font-medium">{asset.name}</div>
-                      <div className="text-xs opacity-70">{asset.type}</div>
+                      <div className="text-xs opacity-70">
+                        {ASSET_TYPE_ICONS[asset.type] || "💼"}
+                        {ASSET_TYPE_LABELS[asset.type] || asset.type}
+                      </div>
                     </div>
                   ))}
                 </div>
