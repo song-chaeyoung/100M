@@ -48,6 +48,10 @@ export function Calendar({
       transactions: [],
     },
   ]);
+  const slidesRef = useRef(slides);
+  useEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
 
   const loadMonthData = useCallback(async (month: string, index: number) => {
     try {
@@ -69,12 +73,12 @@ export function Calendar({
     if (!api) return;
 
     const currentIndex = api.selectedScrollSnap();
-    const currentSlide = slides[currentIndex];
+    const currentSlide = slidesRef.current[currentIndex];
 
     if (currentSlide) {
       await loadMonthData(currentSlide.month, currentIndex);
     }
-  }, [api, slides, loadMonthData]);
+  }, [api, loadMonthData]);
 
   useEffect(() => {
     if (!api) return;
@@ -86,7 +90,7 @@ export function Calendar({
       }
 
       const index = api.selectedScrollSnap();
-      const selectedSlide = slides[index];
+      const selectedSlide = slidesRef.current[index];
       let currentTransactions = selectedSlide.transactions;
 
       if (selectedSlide.transactions.length === 0) {
@@ -142,7 +146,7 @@ export function Calendar({
     return () => {
       api.off("select", onSelect);
     };
-  }, [api, slides, loadMonthData]);
+  }, [api, loadMonthData]);
 
   const handleDateClick = (date: string) => {
     setSelectedDate(date);
