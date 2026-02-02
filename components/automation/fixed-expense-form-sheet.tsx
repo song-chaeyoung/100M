@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import { cn, formatAmount } from "@/lib/utils";
 import { type Category } from "@/lib/api/categories";
 import type { FixedExpense } from "@/lib/types/automation";
@@ -96,8 +97,11 @@ export function FixedExpenseFormSheet({
     }
   }, [open, initialData, form]);
 
-  const { control, handleSubmit, watch, formState, setValue } = form;
+  const { control, handleSubmit, watch, formState } = form;
   const { isDirty, isSubmitting } = formState;
+
+  // 삭제 확인 다이얼로그
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const amount = watch("amount");
   const categoryId = watch("categoryId");
@@ -133,8 +137,11 @@ export function FixedExpenseFormSheet({
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!initialData?.id) return;
 
     try {
@@ -150,6 +157,8 @@ export function FixedExpenseFormSheet({
     } catch (error) {
       console.error("Failed to delete:", error);
       toast.error("오류가 발생했습니다.");
+    } finally {
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -344,6 +353,13 @@ export function FixedExpenseFormSheet({
           </Button>
         </div>
       </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+      />
     </BottomSheet>
   );
 }

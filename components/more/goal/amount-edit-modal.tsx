@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatAmount } from "@/lib/utils";
+import { toast } from "sonner";
 
 // 숫자를 천 단위 콤마로 포맷팅
 // function formatNumber(value: number | string): string {
@@ -64,7 +65,7 @@ export function AmountEditModal({
     if (result.success) {
       onOpenChange(false);
     } else {
-      alert(result.error);
+      toast.error(result.error);
     }
     setIsSaving(false);
   };

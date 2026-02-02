@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import dayjs from "dayjs";
@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
+import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import {
   Popover,
   PopoverContent,
@@ -67,6 +67,9 @@ export function TransactionFormSheet({
   });
 
   console.log(initialData);
+
+  // 삭제 확인 다이얼로그
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // 폼 데이터 동기화
   useEffect(() => {
@@ -166,8 +169,11 @@ export function TransactionFormSheet({
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDelete = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!initialData?.id) return;
 
     try {
@@ -183,6 +189,8 @@ export function TransactionFormSheet({
     } catch (error) {
       console.error("Failed to delete transaction:", error);
       toast.error("오류가 발생했습니다.");
+    } finally {
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -368,6 +376,13 @@ export function TransactionFormSheet({
           </Button>
         </div>
       </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+      />
     </BottomSheet>
   );
 }

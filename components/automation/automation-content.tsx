@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import { type Category } from "@/lib/api/categories";
 import type { FixedExpense, FixedSaving, Asset } from "@/lib/types/automation";
 import { AutomationSummaryCards } from "./automation-summary-cards";
@@ -11,6 +12,7 @@ import { FixedSavingList } from "./fixed-saving-list";
 import { FixedExpenseFormSheet } from "./fixed-expense-form-sheet";
 import { FixedSavingFormSheet } from "./fixed-saving-form-sheet";
 import { AddFixedItemSheet } from "./add-fixed-item-sheet";
+import { toast } from "sonner";
 
 interface AutomationContentProps {
   fixedExpenses: FixedExpense[];
@@ -37,6 +39,12 @@ export function AutomationContent({
   // const [savingEditOpen, setSavingEditOpen] = useState(false);
   const [editingSaving, setEditingSaving] = useState<FixedSaving | null>(null);
 
+  // 삭제 확인 다이얼로그
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "expense" | "saving";
+    id: number;
+  } | null>(null);
+
   const totalExpense = fixedExpenses.reduce(
     (sum, item) => sum + Number(item.amount),
     0,
@@ -51,15 +59,8 @@ export function AutomationContent({
     // setExpenseEditOpen(true);
   };
 
-  const handleDeleteExpense = async (id: number) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-
-    const { deleteFixedExpense } = await import("@/app/actions/fixed-expenses");
-    const result = await deleteFixedExpense(id);
-
-    if (!result.success) {
-      alert("삭제에 실패했습니다.");
-    }
+  const handleDeleteExpense = (id: number) => {
+    setDeleteTarget({ type: "expense", id });
   };
 
   const handleEditSaving = (item: FixedSaving) => {
@@ -67,15 +68,28 @@ export function AutomationContent({
     // setSavingEditOpen(true);
   };
 
-  const handleDeleteSaving = async (id: number) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDeleteSaving = (id: number) => {
+    setDeleteTarget({ type: "saving", id });
+  };
 
-    const { deleteFixedSaving } = await import("@/app/actions/fixed-savings");
-    const result = await deleteFixedSaving(id);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
 
-    if (!result.success) {
-      alert("삭제에 실패했습니다.");
+    if (deleteTarget.type === "expense") {
+      const { deleteFixedExpense } = await import("@/app/actions/fixed-expenses");
+      const result = await deleteFixedExpense(deleteTarget.id);
+      if (!result.success) {
+        toast.error("삭제에 실패했습니다.");
+      }
+    } else {
+      const { deleteFixedSaving } = await import("@/app/actions/fixed-savings");
+      const result = await deleteFixedSaving(deleteTarget.id);
+      if (!result.success) {
+        toast.error("삭제에 실패했습니다.");
+      }
     }
+
+    setDeleteTarget(null);
   };
 
   const handleClose = () => {
@@ -162,6 +176,13 @@ export function AutomationContent({
             : undefined
         }
         assets={assets}
+      />
+
+      {/* 삭제 확인 다이얼로그 */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );
