@@ -1,17 +1,9 @@
-import { auth } from "@/auth";
 import { PageHeader } from "@/components/page-header";
-import { redirect } from "next/navigation";
 import { GoalProgressCard } from "@/components/home/goal-progress-card";
 import { MonthlySummaryCards } from "@/components/home/monthly-summary-cards";
 import { getDashboardData } from "@/app/actions/dashboard";
 
 export default async function HomePage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
   const data = await getDashboardData();
 
   return (

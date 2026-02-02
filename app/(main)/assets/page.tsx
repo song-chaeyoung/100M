@@ -1,16 +1,8 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { getAssets } from "@/app/actions/assets";
 import { AssetListClient } from "@/components/assets/asset-list-client";
 
 export default async function AssetsPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
   const assets = await getAssets();
 
   return (
