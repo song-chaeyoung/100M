@@ -184,19 +184,23 @@ interface DeleteConfirmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
+  title?: string
+  description?: string
 }
 
 function DeleteConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
+  title = "삭제 확인",
+  description = "정말 삭제하시겠습니까?",
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>삭제 확인</AlertDialogTitle>
-          <AlertDialogDescription>정말 삭제하시겠습니까?</AlertDialogDescription>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>취소</AlertDialogCancel>
