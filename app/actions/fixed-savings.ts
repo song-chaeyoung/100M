@@ -144,7 +144,7 @@ export async function getFixedSavings() {
     return result;
   } catch (error) {
     console.error("Error fetching fixed savings:", error);
-    return { success: false, error: "고정 저축 조회에 실패했습니다." };
+    throw new Error("고정 저축 조회에 실패했습니다.");
   }
 }
 

@@ -81,7 +81,7 @@ export async function getAssets() {
     return result;
   } catch (error) {
     console.error("Error fetching assets:", error);
-    return [];
+    throw new Error("자산 계좌 조회에 실패했습니다.");
   }
 }
 

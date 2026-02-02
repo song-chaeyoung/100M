@@ -118,7 +118,7 @@ export async function getFixedExpenses() {
     return result;
   } catch (error) {
     console.error("Error fetching fixed expenses:", error);
-    return { success: false, error: "고정 지출 조회에 실패했습니다." };
+    throw new Error("고정 지출 조회에 실패했습니다.");
   }
 }
 
