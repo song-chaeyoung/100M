@@ -31,7 +31,7 @@ const getDefaultDates = () => ({
 
 interface FixedSavingFormSheetProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: () => void;
   mode: "create" | "edit";
   initialData?: Pick<FixedSaving, "id" | "title" | "amount" | "scheduledDay" | "assetId" | "startDate" | "endDate">;
   assets: Asset[];
@@ -100,7 +100,7 @@ export function FixedSavingFormSheet({
       }
 
       if (result?.success) {
-        onOpenChange(false);
+        onOpenChange();
         toast.success(
           mode === "create"
             ? "고정 저축이 추가되었습니다."
@@ -127,7 +127,7 @@ export function FixedSavingFormSheet({
       const result = await deleteFixedSaving(initialData.id);
 
       if (result.success) {
-        onOpenChange(false);
+        onOpenChange();
         toast.success("고정 저축이 삭제되었습니다.");
       } else {
         toast.error("삭제에 실패했습니다.");

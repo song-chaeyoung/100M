@@ -11,8 +11,17 @@ import { FixedExpenseList } from "./fixed-expense-list";
 import { FixedSavingList } from "./fixed-saving-list";
 import { FixedExpenseFormSheet } from "./fixed-expense-form-sheet";
 import { FixedSavingFormSheet } from "./fixed-saving-form-sheet";
-import { AddFixedItemSheet } from "./add-fixed-item-sheet";
+import { BottomSheet } from "@/components/bottom-sheet";
 import { toast } from "sonner";
+
+type ModalState =
+  | { type: "selectType" }
+  | { type: "createExpense" }
+  | { type: "createSaving" }
+  | { type: "editExpense"; data: FixedExpense }
+  | { type: "editSaving"; data: FixedSaving }
+  | { type: "delete"; target: { kind: "expense" | "saving"; id: number } }
+  | null;
 
 interface AutomationContentProps {
   fixedExpenses: FixedExpense[];
@@ -27,23 +36,7 @@ export function AutomationContent({
   categories,
   assets,
 }: AutomationContentProps) {
-  const [addSheetOpen, setAddSheetOpen] = useState(false);
-
-  // 고정 지출 수정
-  // const [expenseEditOpen, setExpenseEditOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<FixedExpense | null>(
-    null,
-  );
-
-  // 고정 저축 수정
-  // const [savingEditOpen, setSavingEditOpen] = useState(false);
-  const [editingSaving, setEditingSaving] = useState<FixedSaving | null>(null);
-
-  // 삭제 확인 다이얼로그
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: "expense" | "saving";
-    id: number;
-  } | null>(null);
+  const [modal, setModal] = useState<ModalState>(null);
 
   const totalExpense = fixedExpenses.reduce(
     (sum, item) => sum + Number(item.amount),
@@ -55,47 +48,43 @@ export function AutomationContent({
   );
 
   const handleEditExpense = (item: FixedExpense) => {
-    setEditingExpense(item);
-    // setExpenseEditOpen(true);
+    setModal({ type: "editExpense", data: item });
   };
 
   const handleDeleteExpense = (id: number) => {
-    setDeleteTarget({ type: "expense", id });
+    setModal({ type: "delete", target: { kind: "expense", id } });
   };
 
   const handleEditSaving = (item: FixedSaving) => {
-    setEditingSaving(item);
-    // setSavingEditOpen(true);
+    setModal({ type: "editSaving", data: item });
   };
 
   const handleDeleteSaving = (id: number) => {
-    setDeleteTarget({ type: "saving", id });
+    setModal({ type: "delete", target: { kind: "saving", id } });
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (modal?.type !== "delete") return;
 
-    if (deleteTarget.type === "expense") {
+    const { target } = modal;
+    if (target.kind === "expense") {
       const { deleteFixedExpense } = await import("@/app/actions/fixed-expenses");
-      const result = await deleteFixedExpense(deleteTarget.id);
+      const result = await deleteFixedExpense(target.id);
       if (!result.success) {
         toast.error("삭제에 실패했습니다.");
       }
     } else {
       const { deleteFixedSaving } = await import("@/app/actions/fixed-savings");
-      const result = await deleteFixedSaving(deleteTarget.id);
+      const result = await deleteFixedSaving(target.id);
       if (!result.success) {
         toast.error("삭제에 실패했습니다.");
       }
     }
 
-    setDeleteTarget(null);
+    setModal(null);
   };
 
-  const handleClose = () => {
-    setEditingExpense(null);
-    setEditingSaving(null);
-  };
+  const closeModal = () => setModal(null);
 
   return (
     <div className="space-y-6">
@@ -118,7 +107,7 @@ export function AutomationContent({
       </div>
 
       <Button
-        onClick={() => setAddSheetOpen(true)}
+        onClick={() => setModal({ type: "selectType" })}
         className="w-full"
         size="lg"
       >
@@ -126,31 +115,67 @@ export function AutomationContent({
         고정 항목 추가
       </Button>
 
-      {/* 추가 시트 */}
-      <AddFixedItemSheet
-        open={addSheetOpen}
-        onOpenChange={setAddSheetOpen}
+      {/* 타입 선택 시트 */}
+      <BottomSheet
+        open={modal?.type === "selectType"}
+        onOpenChange={(open) => !open && closeModal()}
+        title="추가할 항목 선택"
+      >
+        <div className="grid grid-cols-2 gap-3 py-4">
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-20 flex-col gap-2"
+            onClick={() => setModal({ type: "createExpense" })}
+          >
+            <span className="text-2xl">💸</span>
+            <span>고정 지출</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-20 flex-col gap-2"
+            onClick={() => setModal({ type: "createSaving" })}
+          >
+            <span className="text-2xl">💰</span>
+            <span>고정 저축</span>
+          </Button>
+        </div>
+      </BottomSheet>
+
+      {/* 고정 지출 생성 시트 */}
+      <FixedExpenseFormSheet
+        open={modal?.type === "createExpense"}
+        onOpenChange={closeModal}
+        mode="create"
         categories={categories}
+      />
+
+      {/* 고정 저축 생성 시트 */}
+      <FixedSavingFormSheet
+        open={modal?.type === "createSaving"}
+        onOpenChange={closeModal}
+        mode="create"
         assets={assets}
       />
 
       {/* 고정 지출 수정 시트 */}
       <FixedExpenseFormSheet
-        open={!!editingExpense}
-        onOpenChange={handleClose}
+        open={modal?.type === "editExpense"}
+        onOpenChange={closeModal}
         mode="edit"
         initialData={
-          editingExpense
+          modal?.type === "editExpense"
             ? {
-                id: editingExpense.id,
-                title: editingExpense.title,
-                amount: editingExpense.amount,
-                scheduledDay: editingExpense.scheduledDay,
-                type: editingExpense.type,
-                categoryId: editingExpense.categoryId,
-                method: editingExpense.method,
-                startDate: editingExpense.startDate,
-                endDate: editingExpense.endDate,
+                id: modal.data.id,
+                title: modal.data.title,
+                amount: modal.data.amount,
+                scheduledDay: modal.data.scheduledDay,
+                type: modal.data.type,
+                categoryId: modal.data.categoryId,
+                method: modal.data.method,
+                startDate: modal.data.startDate,
+                endDate: modal.data.endDate,
               }
             : undefined
         }
@@ -159,19 +184,19 @@ export function AutomationContent({
 
       {/* 고정 저축 수정 시트 */}
       <FixedSavingFormSheet
-        open={!!editingSaving}
-        onOpenChange={handleClose}
+        open={modal?.type === "editSaving"}
+        onOpenChange={closeModal}
         mode="edit"
         initialData={
-          editingSaving
+          modal?.type === "editSaving"
             ? {
-                id: editingSaving.id,
-                title: editingSaving.title,
-                amount: editingSaving.amount,
-                scheduledDay: editingSaving.scheduledDay,
-                assetId: editingSaving.assetId,
-                startDate: editingSaving.startDate,
-                endDate: editingSaving.endDate,
+                id: modal.data.id,
+                title: modal.data.title,
+                amount: modal.data.amount,
+                scheduledDay: modal.data.scheduledDay,
+                assetId: modal.data.assetId,
+                startDate: modal.data.startDate,
+                endDate: modal.data.endDate,
               }
             : undefined
         }
@@ -180,8 +205,8 @@ export function AutomationContent({
 
       {/* 삭제 확인 다이얼로그 */}
       <DeleteConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
+        open={modal?.type === "delete"}
+        onOpenChange={closeModal}
         onConfirm={handleConfirmDelete}
       />
     </div>
