@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import { cn, formatAmount } from "@/lib/utils";
+import { MonthPicker } from "@/components/ui/month-picker";
 import { type Category } from "@/lib/api/categories";
 import type { FixedExpense } from "@/lib/types/automation";
 import {
@@ -246,8 +247,7 @@ export function FixedExpenseFormSheet({
               name="startDate"
               control={control}
               render={({ field }) => (
-                <Input
-                  type="month"
+                <MonthPicker
                   value={field.value}
                   onChange={field.onChange}
                   className="flex-1"
@@ -259,8 +259,7 @@ export function FixedExpenseFormSheet({
               name="endDate"
               control={control}
               render={({ field }) => (
-                <Input
-                  type="month"
+                <MonthPicker
                   value={field.value}
                   onChange={field.onChange}
                   className="flex-1"

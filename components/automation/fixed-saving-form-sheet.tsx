@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import { cn, formatAmount } from "@/lib/utils";
+import { MonthPicker } from "@/components/ui/month-picker";
 import type { FixedSaving, Asset } from "@/lib/types/automation";
 import {
   fixedSavingSchema,
@@ -237,8 +238,7 @@ export function FixedSavingFormSheet({
               name="startDate"
               control={control}
               render={({ field }) => (
-                <Input
-                  type="month"
+                <MonthPicker
                   value={field.value}
                   onChange={field.onChange}
                   className="flex-1"
@@ -250,8 +250,7 @@ export function FixedSavingFormSheet({
               name="endDate"
               control={control}
               render={({ field }) => (
-                <Input
-                  type="month"
+                <MonthPicker
                   value={field.value}
                   onChange={field.onChange}
                   className="flex-1"
