@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dayjs from "dayjs";
@@ -41,14 +41,10 @@ const assetTransactionFormSchema = z
     memo: z.string().optional(),
     toAssetId: z.number().optional(),
   })
-  .refine(
-    (data) =>
-      data.type !== "TRANSFER" || data.toAssetId !== undefined,
-    {
-      message: "이체 대상 자산을 선택하세요",
-      path: ["toAssetId"],
-    }
-  );
+  .refine((data) => data.type !== "TRANSFER" || data.toAssetId !== undefined, {
+    message: "이체 대상 자산을 선택하세요",
+    path: ["toAssetId"],
+  });
 
 type AssetTransactionFormValues = z.infer<typeof assetTransactionFormSchema>;
 
@@ -138,15 +134,16 @@ export function AssetTransactionFormSheet({
     }
   }, [open, editingTransaction, form]);
 
-  const { control, handleSubmit, watch, formState } = form;
+  const { control, handleSubmit, formState } = form;
   const { isDirty, isSubmitting } = formState;
 
-  const transactionType = watch("type");
-  const amount = watch("amount");
+  const transactionType = useWatch({ control, name: "type" });
+  const amount = useWatch({ control, name: "amount" });
+  const toAssetId = useWatch({ control, name: "toAssetId" });
 
   // 이체 가능한 다른 자산 목록
   const transferableAssets = allAssets.filter(
-    (a) => a.id !== assetId && a.isActive
+    (a) => a.id !== assetId && a.isActive,
   );
 
   // 폼 제출 핸들러
@@ -163,7 +160,10 @@ export function AssetTransactionFormSheet({
 
       let result;
       if (isEditMode && editingTransaction) {
-        result = await updateAssetTransaction(editingTransaction.id, submitData);
+        result = await updateAssetTransaction(
+          editingTransaction.id,
+          submitData,
+        );
       } else {
         result = await createAssetTransaction(submitData);
       }
@@ -171,15 +171,13 @@ export function AssetTransactionFormSheet({
       if (result?.success) {
         onOpenChange(false);
         toast.success(
-          isEditMode
-            ? "거래가 수정되었습니다."
-            : "거래가 추가되었습니다."
+          isEditMode ? "거래가 수정되었습니다." : "거래가 추가되었습니다.",
         );
       } else {
         toast.error(
           typeof result?.error === "string"
             ? result.error
-            : "저장에 실패했습니다."
+            : "저장에 실패했습니다.",
         );
       }
     } catch (error) {
@@ -198,7 +196,7 @@ export function AssetTransactionFormSheet({
   const isValidForm =
     amount &&
     (transactionType !== "TRANSFER" ||
-      (transactionType === "TRANSFER" && watch("toAssetId")));
+      (transactionType === "TRANSFER" && toAssetId));
 
   return (
     <BottomSheet
@@ -206,7 +204,7 @@ export function AssetTransactionFormSheet({
       onOpenChange={onOpenChange}
       title={isEditMode ? "거래 수정" : "거래 추가"}
       description="입출금 내역을 기록합니다"
-      className="min-h-[80svh] max-h-[100svh]"
+      className="min-h-[80svh] max-h-svh"
     >
       <div className="space-y-6 py-4">
         {/* 거래 타입 선택 */}
@@ -239,7 +237,7 @@ export function AssetTransactionFormSheet({
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !field.value && "text-muted-foreground"
+                      !field.value && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -334,11 +332,7 @@ export function AssetTransactionFormSheet({
             onClick={handleSubmit(onSubmit)}
             className="w-full"
             size="lg"
-            disabled={
-              !isValidForm ||
-              isSubmitting ||
-              (isEditMode && !isDirty)
-            }
+            disabled={!isValidForm || isSubmitting || (isEditMode && !isDirty)}
           >
             {getButtonText()}
           </Button>

@@ -8,13 +8,6 @@ import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn, formatAmount } from "@/lib/utils";
 import { createAsset, updateAsset } from "@/app/actions/assets";
 import { toast } from "sonner";
@@ -23,7 +16,7 @@ const assetFormSchema = z.object({
   name: z.string().min(1, "자산 이름을 입력하세요"),
   type: z.enum(
     ["SAVINGS", "DEPOSIT", "STOCK", "FUND", "CRYPTO", "REAL_ESTATE", "OTHER"],
-    { message: "자산 유형을 선택하세요" }
+    { message: "자산 유형을 선택하세요" },
   ),
   balance: z.string(),
   institution: z.string().optional(),
@@ -132,13 +125,13 @@ export function AssetFormSheet({
       if (result?.success) {
         onOpenChange(false);
         toast.success(
-          isEditMode ? "자산이 수정되었습니다." : "자산이 추가되었습니다."
+          isEditMode ? "자산이 수정되었습니다." : "자산이 추가되었습니다.",
         );
       } else {
         toast.error(
           typeof result?.error === "string"
             ? result.error
-            : "저장에 실패했습니다."
+            : "저장에 실패했습니다.",
         );
       }
     } catch (error) {
@@ -160,7 +153,7 @@ export function AssetFormSheet({
       onOpenChange={onOpenChange}
       title={isEditMode ? "자산 수정" : "자산 추가"}
       description="자산 계좌 정보를 입력하세요"
-      className="min-h-[80svh] max-h-[100svh]"
+      className="min-h-[80svh] max-h-svh"
     >
       <div className="space-y-6 py-4">
         {/* 자산 이름 */}
@@ -170,10 +163,7 @@ export function AssetFormSheet({
             name="name"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="예: 신한은행 적금"
-              />
+              <Input {...field} placeholder="예: 신한은행 적금" />
             )}
           />
         </div>
@@ -193,7 +183,7 @@ export function AssetFormSheet({
                     className={cn(
                       "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
                       field.value === option.value &&
-                        "bg-primary text-primary-foreground"
+                        "bg-primary text-primary-foreground",
                     )}
                   >
                     <div className="text-xl">{option.icon}</div>
@@ -236,10 +226,7 @@ export function AssetFormSheet({
             name="institution"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="예: 신한은행"
-              />
+              <Input {...field} placeholder="예: 신한은행" />
             )}
           />
         </div>
@@ -251,10 +238,7 @@ export function AssetFormSheet({
             name="accountNumber"
             control={control}
             render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="예: 110-xxx-xxxxxx"
-              />
+              <Input {...field} placeholder="예: 110-xxx-xxxxxx" />
             )}
           />
         </div>

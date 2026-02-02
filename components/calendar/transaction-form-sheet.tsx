@@ -207,7 +207,7 @@ export function TransactionFormSheet({
       onOpenChange={onOpenChange}
       title={mode === "create" ? "거래 추가" : "거래 상세"}
       description={dayjs(selectedDate).format("YYYY년 M월 D일")}
-      className="min-h-[100svh] max-h-[100svh]"
+      className="min-h-svh max-h-svh"
     >
       <div className="space-y-6 py-4">
         <Controller
