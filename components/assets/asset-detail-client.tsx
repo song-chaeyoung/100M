@@ -9,43 +9,8 @@ import { AssetTransactionList } from "./asset-transaction-list";
 import { AssetTransactionFormSheet } from "./asset-transaction-form-sheet";
 import { deleteAssetTransaction } from "@/app/actions/asset-transactions";
 import { toast } from "sonner";
-import type { AssetTransactionType } from "@/db/schema";
-
-interface Asset {
-  id: number;
-  name: string;
-  type: string;
-  balance: string;
-  institution: string | null;
-  accountNumber: string | null;
-  interestRate: string | null;
-  icon: string | null;
-  color: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface AssetTransaction {
-  id: number;
-  assetId: number;
-  type: AssetTransactionType;
-  amount: string;
-  date: string;
-  memo: string | null;
-  isFixed: boolean;
-  fixedSavingId: number | null;
-  toAssetId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  asset: {
-    id: number;
-    name: string;
-    type: string;
-    icon: string | null;
-    color: string | null;
-  } | null;
-}
+import type { Asset } from "@/lib/validations/asset";
+import type { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 interface AssetDetailClientProps {
   asset: Asset;
