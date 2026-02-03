@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { PageHeader } from "@/components/page-header";
 import { getAssets } from "@/app/actions/assets";
 import { AssetListClient } from "@/components/assets/asset-list-client";

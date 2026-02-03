@@ -64,6 +64,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
 
     // 2. 기간 내 예정 거래 생성
     const months = getMonthsBetween(parsed.data.startDate, parsed.data.endDate);
+    const today = dayjs().format("YYYY-MM-DD");
 
     for (const month of months) {
       const date = `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`;
@@ -84,7 +85,6 @@ export async function createFixedSaving(data: FixedSavingInput) {
         .returning();
 
       // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
-      const today = dayjs().format("YYYY-MM-DD");
       if (date <= today) {
         await updateAssetBalance(
           parsed.data.assetId,
@@ -105,13 +105,11 @@ export async function createFixedSaving(data: FixedSavingInput) {
       });
     }
 
-    const result = fixedSaving;
-
     revalidatePath("/automation");
     revalidatePath("/assets");
     revalidatePath("/");
 
-    return { success: true, data: result };
+    return { success: true, data: fixedSaving };
   } catch (error) {
     console.error("Error creating fixed saving:", error);
     return { success: false, error: "고정 저축 생성에 실패했습니다." };
@@ -249,9 +247,9 @@ export async function updateFixedSaving(
       }
     }
 
-    // 1. 미래 날짜의 자산거래 삭제 (연결된 transactions도 삭제)
-    // 먼저 삭제할 assetTransaction ID들 조회
     const today = dayjs().format("YYYY-MM-DD");
+
+    // 1. 미래 날짜의 자산거래 삭제 (연결된 transactions도 삭제)
     const assetTxToDelete = await db
       .select({ id: assetTransactions.id })
       .from(assetTransactions)
@@ -262,14 +260,12 @@ export async function updateFixedSaving(
         ),
       );
 
-    // 연결된 transactions 삭제
     for (const atx of assetTxToDelete) {
       await db
         .delete(transactions)
         .where(eq(transactions.linkedAssetTransactionId, atx.id));
     }
 
-    // assetTransactions 삭제
     await db
       .delete(assetTransactions)
       .where(
@@ -333,7 +329,6 @@ export async function updateFixedSaving(
             })
             .returning();
 
-          // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
           if (date <= today) {
             await updateAssetBalance(assetId, amount, "add");
           }
@@ -351,13 +346,11 @@ export async function updateFixedSaving(
       }
     }
 
-    const result = updated;
-
     revalidatePath("/automation");
     revalidatePath("/assets");
     revalidatePath("/");
 
-    return { success: true, data: result };
+    return { success: true, data: updated };
   } catch (error) {
     console.error("Error updating fixed saving:", error);
     return { success: false, error: "고정 저축 수정에 실패했습니다." };
@@ -502,7 +495,6 @@ export async function toggleFixedSavingActive(id: number) {
             })
             .returning();
 
-          // 자산 잔액 업데이트 (과거/오늘 날짜인 경우만)
           if (date <= today) {
             await updateAssetBalance(
               existing[0].assetId,

@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
 import {
   assetTransactionSchema,
@@ -91,14 +92,16 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
       }
     }
 
-    // 거래 생성
-    const [result] = await db
+    const operation = getBalanceOperation(parsed.data.type);
+    const amount = parsed.data.amount.toString();
+
+    const insertQuery = db
       .insert(assetTransactions)
       .values({
         userId,
         assetId: parsed.data.assetId,
         type: parsed.data.type,
-        amount: parsed.data.amount.toString(),
+        amount,
         date: parsed.data.date,
         memo: parsed.data.memo || null,
         toAssetId: parsed.data.toAssetId || null,
@@ -106,21 +109,34 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
       })
       .returning();
 
-    // 잔액 업데이트
-    const operation = getBalanceOperation(parsed.data.type);
-    await updateAssetBalance(
-      parsed.data.assetId,
-      parsed.data.amount.toString(),
-      operation
-    );
+    const fromBalanceQuery = db
+      .update(assets)
+      .set({
+        balance:
+          operation === "add"
+            ? sql`${assets.balance} + ${amount}`
+            : sql`${assets.balance} - ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(assets.id, parsed.data.assetId));
 
-    // TRANSFER인 경우 대상 자산도 업데이트
+    let result;
     if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
-      await updateAssetBalance(
-        parsed.data.toAssetId,
-        parsed.data.amount.toString(),
-        "add"
-      );
+      const [[inserted]] = await db.batch([
+        insertQuery,
+        fromBalanceQuery,
+        db
+          .update(assets)
+          .set({
+            balance: sql`${assets.balance} + ${amount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, parsed.data.toAssetId)),
+      ]);
+      result = inserted;
+    } else {
+      const [[inserted]] = await db.batch([insertQuery, fromBalanceQuery]);
+      result = inserted;
     }
 
     revalidatePath("/assets");
@@ -276,17 +292,7 @@ export async function updateAssetTransaction(
       };
     }
 
-    // 1. 기존 거래의 잔액 영향 되돌리기 (역연산)
-    const existingOp = getBalanceOperation(existing[0].type);
-    const reverseOp = existingOp === "add" ? "subtract" : "add";
-    await updateAssetBalance(existing[0].assetId, existing[0].amount, reverseOp);
-
-    // 기존 거래가 TRANSFER였다면 대상 자산도 역연산
-    if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
-      await updateAssetBalance(existing[0].toAssetId, existing[0].amount, "subtract");
-    }
-
-    // 2. 거래 정보 업데이트
+    // 거래 정보 업데이트 데이터 준비
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -302,25 +308,82 @@ export async function updateAssetTransaction(
     if (parsed.data.toAssetId !== undefined)
       updateData.toAssetId = parsed.data.toAssetId || null;
 
-    const [updated] = await db
-      .update(assetTransactions)
-      .set(updateData)
-      .where(eq(assetTransactions.id, id))
-      .returning();
-
-    // 3. 새 거래 값으로 잔액 재적용
     const newAssetId = parsed.data.assetId ?? existing[0].assetId;
     const newType = parsed.data.type ?? existing[0].type;
     const newAmount = parsed.data.amount?.toString() ?? existing[0].amount;
     const newToAssetId = parsed.data.toAssetId ?? existing[0].toAssetId;
 
+    const existingOp = getBalanceOperation(existing[0].type);
+    const reverseOp = existingOp === "add" ? "subtract" : "add";
     const newOp = getBalanceOperation(newType);
-    await updateAssetBalance(newAssetId, newAmount, newOp);
 
-    // 새 거래가 TRANSFER라면 대상 자산도 업데이트
-    if (newType === "TRANSFER" && newToAssetId) {
-      await updateAssetBalance(newToAssetId, newAmount, "add");
+    // batch 쿼리 구성: 역연산 → 거래 수정 → 새 적용
+    const queries: BatchItem<"pg">[] = [
+      // 1. 기존 잔액 역연산
+      db
+        .update(assets)
+        .set({
+          balance:
+            reverseOp === "add"
+              ? sql`${assets.balance} + ${existing[0].amount}`
+              : sql`${assets.balance} - ${existing[0].amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(assets.id, existing[0].assetId)),
+    ];
+
+    if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
+      queries.push(
+        db
+          .update(assets)
+          .set({
+            balance: sql`${assets.balance} - ${existing[0].amount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, existing[0].toAssetId))
+      );
     }
+
+    // 2. 거래 수정 (RETURNING) - 인덱스 추적
+    const returningIndex = queries.length;
+    queries.push(
+      db
+        .update(assetTransactions)
+        .set(updateData)
+        .where(eq(assetTransactions.id, id))
+        .returning()
+    );
+
+    // 3. 새 잔액 적용
+    queries.push(
+      db
+        .update(assets)
+        .set({
+          balance:
+            newOp === "add"
+              ? sql`${assets.balance} + ${newAmount}`
+              : sql`${assets.balance} - ${newAmount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(assets.id, newAssetId))
+    );
+
+    if (newType === "TRANSFER" && newToAssetId) {
+      queries.push(
+        db
+          .update(assets)
+          .set({
+            balance: sql`${assets.balance} + ${newAmount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, newToAssetId))
+      );
+    }
+
+    const results = await db.batch(
+      queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]
+    );
+    const updated = results[returningIndex][0];
 
     revalidatePath("/assets");
     revalidatePath("/");
@@ -366,18 +429,39 @@ export async function deleteAssetTransaction(id: number) {
       };
     }
 
-    // 잔액 역연산
     const existingOp = getBalanceOperation(existing[0].type);
     const reverseOp = existingOp === "add" ? "subtract" : "add";
-    await updateAssetBalance(existing[0].assetId, existing[0].amount, reverseOp);
 
-    // TRANSFER였다면 대상 자산도 역연산
+    const reverseQuery = db
+      .update(assets)
+      .set({
+        balance:
+          reverseOp === "add"
+            ? sql`${assets.balance} + ${existing[0].amount}`
+            : sql`${assets.balance} - ${existing[0].amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(assets.id, existing[0].assetId));
+
+    const deleteQuery = db
+      .delete(assetTransactions)
+      .where(eq(assetTransactions.id, id));
+
     if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
-      await updateAssetBalance(existing[0].toAssetId, existing[0].amount, "subtract");
+      await db.batch([
+        reverseQuery,
+        db
+          .update(assets)
+          .set({
+            balance: sql`${assets.balance} - ${existing[0].amount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, existing[0].toAssetId)),
+        deleteQuery,
+      ]);
+    } else {
+      await db.batch([reverseQuery, deleteQuery]);
     }
-
-    // 거래 삭제
-    await db.delete(assetTransactions).where(eq(assetTransactions.id, id));
 
     revalidatePath("/assets");
     revalidatePath("/");
