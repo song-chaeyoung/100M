@@ -66,8 +66,6 @@ export function TransactionFormSheet({
     },
   });
 
-  console.log(initialData);
-
   // 삭제 확인 다이얼로그
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
