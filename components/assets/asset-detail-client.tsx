@@ -24,15 +24,14 @@ export function AssetDetailClient({
   transactions,
   allAssets,
 }: AssetDetailClientProps) {
-  const [formSheetOpen, setFormSheetOpen] = useState(false);
+  const [transactionSheet, setTransactionSheet] = useState<
+    AssetTransaction | "new" | null
+  >(null);
   const [assetFormSheetOpen, setAssetFormSheetOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] =
-    useState<AssetTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   const handleAddTransaction = () => {
-    setEditingTransaction(null);
-    setFormSheetOpen(true);
+    setTransactionSheet("new");
   };
 
   const handleEditTransaction = (transaction: AssetTransaction) => {
@@ -40,8 +39,7 @@ export function AssetDetailClient({
       toast.error("자동 생성된 거래는 수정할 수 없습니다.");
       return;
     }
-    setEditingTransaction(transaction);
-    setFormSheetOpen(true);
+    setTransactionSheet(transaction);
   };
 
   const handleDeleteTransaction = (id: number, isFixed: boolean) => {
@@ -65,8 +63,7 @@ export function AssetDetailClient({
   };
 
   const handleCloseForm = () => {
-    setFormSheetOpen(false);
-    setEditingTransaction(null);
+    setTransactionSheet(null);
   };
 
   return (
@@ -90,11 +87,13 @@ export function AssetDetailClient({
 
       {/* 거래 등록/수정 시트 */}
       <AssetTransactionFormSheet
-        open={formSheetOpen}
+        open={transactionSheet !== null}
         onOpenChange={handleCloseForm}
         assetId={asset.id}
         allAssets={allAssets}
-        editingTransaction={editingTransaction}
+        editingTransaction={
+          transactionSheet === "new" ? null : transactionSheet
+        }
       />
 
       {/* 삭제 확인 다이얼로그 */}
