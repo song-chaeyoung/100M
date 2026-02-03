@@ -7,6 +7,7 @@ import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
 import { AssetHeader } from "./asset-header";
 import { AssetTransactionList } from "./asset-transaction-list";
 import { AssetTransactionFormSheet } from "./asset-transaction-form-sheet";
+import { AssetFormSheet } from "./asset-form-sheet";
 import { deleteAssetTransaction } from "@/app/actions/asset-transactions";
 import { toast } from "sonner";
 import type { Asset } from "@/lib/validations/asset";
@@ -24,6 +25,7 @@ export function AssetDetailClient({
   allAssets,
 }: AssetDetailClientProps) {
   const [formSheetOpen, setFormSheetOpen] = useState(false);
+  const [assetFormSheetOpen, setAssetFormSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<AssetTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
@@ -69,7 +71,7 @@ export function AssetDetailClient({
 
   return (
     <div className="container mx-auto p-4 space-y-6 pb-24">
-      <AssetHeader asset={asset} />
+      <AssetHeader asset={asset} onEdit={() => setAssetFormSheetOpen(true)} />
 
       <AssetTransactionList
         transactions={transactions}
@@ -102,6 +104,13 @@ export function AssetDetailClient({
         onConfirm={handleConfirmDelete}
         title="거래 삭제"
         description="정말 이 거래를 삭제하시겠어요? 자산 잔액이 자동으로 조정됩니다."
+      />
+
+      {/* 자산 수정 시트 */}
+      <AssetFormSheet
+        open={assetFormSheetOpen}
+        onOpenChange={setAssetFormSheetOpen}
+        editingAsset={asset}
       />
     </div>
   );

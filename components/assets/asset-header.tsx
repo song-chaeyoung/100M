@@ -41,9 +41,10 @@ interface Asset {
 
 interface AssetHeaderProps {
   asset: Asset;
+  onEdit?: () => void;
 }
 
-export function AssetHeader({ asset }: AssetHeaderProps) {
+export function AssetHeader({ asset, onEdit }: AssetHeaderProps) {
   const router = useRouter();
   const balance = Number(asset.balance);
   const icon = asset.icon || ASSET_TYPE_ICONS[asset.type] || "💼";
@@ -63,9 +64,7 @@ export function AssetHeader({ asset }: AssetHeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            // TODO: 자산 수정 화면으로 이동
-          }}
+          onClick={onEdit}
         >
           <Pencil className="h-5 w-5" />
         </Button>
