@@ -331,6 +331,8 @@ export function FixedSavingFormSheet({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
+        title="삭제하시겠습니까?"
+        description="오늘 이후의 예정된 거래내역은 같이 삭제됩니다."
       />
     </BottomSheet>
   );

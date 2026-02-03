@@ -81,8 +81,10 @@ export function FixedExpenseFormSheet({
           type: initialData.type,
           categoryId: initialData.categoryId ?? undefined,
           method: initialData.method,
-          startDate: initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
-          endDate: initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
+          startDate:
+            initialData.startDate?.slice(0, 7) ?? getDefaultDates().startDate,
+          endDate:
+            initialData.endDate?.slice(0, 7) ?? getDefaultDates().endDate,
         });
       } else {
         form.reset({
@@ -358,6 +360,8 @@ export function FixedExpenseFormSheet({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
+        title="삭제하시겠습니까?"
+        description="오늘 이후의 예정된 거래내역은 같이 삭제됩니다."
       />
     </BottomSheet>
   );

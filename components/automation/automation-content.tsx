@@ -68,7 +68,8 @@ export function AutomationContent({
 
     const { target } = modal;
     if (target.kind === "expense") {
-      const { deleteFixedExpense } = await import("@/app/actions/fixed-expenses");
+      const { deleteFixedExpense } =
+        await import("@/app/actions/fixed-expenses");
       const result = await deleteFixedExpense(target.id);
       if (!result.success) {
         toast.error("삭제에 실패했습니다.");
@@ -208,6 +209,8 @@ export function AutomationContent({
         open={modal?.type === "delete"}
         onOpenChange={closeModal}
         onConfirm={handleConfirmDelete}
+        title="삭제하시겠습니까?"
+        description="오늘 이후의 예정된 거래내역은 같이 삭제됩니다."
       />
     </div>
   );
