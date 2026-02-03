@@ -3,28 +3,7 @@
 import { FileText } from "lucide-react";
 import { AssetTransactionItem } from "./asset-transaction-item";
 import dayjs from "dayjs";
-import type { AssetTransactionType } from "@/db/schema";
-
-interface AssetTransaction {
-  id: number;
-  assetId: number;
-  type: AssetTransactionType;
-  amount: string;
-  date: string;
-  memo: string | null;
-  isFixed: boolean;
-  fixedSavingId: number | null;
-  toAssetId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  asset: {
-    id: number;
-    name: string;
-    type: string;
-    icon: string | null;
-    color: string | null;
-  } | null;
-}
+import { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 interface AssetTransactionListProps {
   transactions: AssetTransaction[];

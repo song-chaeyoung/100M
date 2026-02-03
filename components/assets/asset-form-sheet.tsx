@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { cn, formatAmount } from "@/lib/utils";
 import { createAsset, updateAsset } from "@/app/actions/assets";
 import { toast } from "sonner";
+import { Asset } from "@/lib/validations/asset";
 
 const assetFormSchema = z.object({
   name: z.string().min(1, "자산 이름을 입력하세요"),
@@ -35,19 +36,6 @@ const ASSET_TYPE_OPTIONS = [
   { value: "REAL_ESTATE", label: "부동산", icon: "🏠" },
   { value: "OTHER", label: "기타", icon: "💼" },
 ];
-
-interface Asset {
-  id: number;
-  name: string;
-  type: string;
-  balance: string;
-  institution: string | null;
-  accountNumber: string | null;
-  interestRate: string | null;
-  icon: string | null;
-  color: string | null;
-  isActive: boolean;
-}
 
 interface AssetFormSheetProps {
   open: boolean;

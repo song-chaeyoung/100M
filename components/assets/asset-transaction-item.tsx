@@ -11,10 +11,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { AssetTransactionType } from "@/db/schema";
+import { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 const TYPE_CONFIG: Record<
-  AssetTransactionType,
+  AssetTransaction["type"],
   {
     label: string;
     icon: typeof ArrowDownLeft;
@@ -53,27 +53,6 @@ const TYPE_CONFIG: Record<
     sign: "-",
   },
 };
-
-interface AssetTransaction {
-  id: number;
-  assetId: number;
-  type: AssetTransactionType;
-  amount: string;
-  date: string;
-  memo: string | null;
-  isFixed: boolean;
-  fixedSavingId: number | null;
-  toAssetId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  asset: {
-    id: number;
-    name: string;
-    type: string;
-    icon: string | null;
-    color: string | null;
-  } | null;
-}
 
 interface AssetTransactionItemProps {
   transaction: AssetTransaction;

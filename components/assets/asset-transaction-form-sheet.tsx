@@ -30,7 +30,8 @@ import {
   updateAssetTransaction,
 } from "@/app/actions/asset-transactions";
 import { toast } from "sonner";
-import type { AssetTransactionType } from "@/db/schema";
+import { Asset } from "@/lib/validations/asset";
+import { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 // 폼 스키마
 const assetTransactionFormSchema = z
@@ -48,40 +49,13 @@ const assetTransactionFormSchema = z
 
 type AssetTransactionFormValues = z.infer<typeof assetTransactionFormSchema>;
 
-const TYPE_OPTIONS: { value: AssetTransactionType; label: string }[] = [
+const TYPE_OPTIONS: { value: AssetTransaction["type"]; label: string }[] = [
   { value: "DEPOSIT", label: "입금" },
   { value: "WITHDRAW", label: "출금" },
   { value: "PROFIT", label: "수익" },
   { value: "LOSS", label: "손실" },
   { value: "TRANSFER", label: "이체" },
 ];
-
-interface Asset {
-  id: number;
-  name: string;
-  type: string;
-  balance: string;
-  institution: string | null;
-  accountNumber: string | null;
-  interestRate: string | null;
-  icon: string | null;
-  color: string | null;
-  isActive: boolean;
-}
-
-interface AssetTransaction {
-  id: number;
-  assetId: number;
-  type: AssetTransactionType;
-  amount: string;
-  date: string;
-  memo: string | null;
-  isFixed: boolean;
-  fixedSavingId: number | null;
-  toAssetId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 interface AssetTransactionFormSheetProps {
   open: boolean;

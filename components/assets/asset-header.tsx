@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { Asset } from "@/lib/validations/asset";
 
 const ASSET_TYPE_LABELS: Record<string, string> = {
   SAVINGS: "예금",
@@ -25,19 +26,6 @@ const ASSET_TYPE_ICONS: Record<string, string> = {
   REAL_ESTATE: "🏠",
   OTHER: "💼",
 };
-
-interface Asset {
-  id: number;
-  name: string;
-  type: string;
-  balance: string;
-  institution: string | null;
-  accountNumber: string | null;
-  interestRate: string | null;
-  icon: string | null;
-  color: string | null;
-  isActive: boolean;
-}
 
 interface AssetHeaderProps {
   asset: Asset;
