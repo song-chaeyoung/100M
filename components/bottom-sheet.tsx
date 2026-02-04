@@ -36,7 +36,7 @@ export function BottomSheet({
   className,
 }: BottomSheetProps) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={onOpenChange} handleOnly>
       <DrawerContent className={cn("max-h-[90vh]", className)}>
         {/* 드래그 핸들 (Drawer에 기본 포함) */}
 
@@ -68,7 +68,7 @@ export function BottomSheet({
         )}
 
         {/* 콘텐츠 */}
-        <div className="overflow-y-auto px-4 pb-4">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
 
         {/* 푸터 */}
         {footer && <DrawerFooter>{footer}</DrawerFooter>}
