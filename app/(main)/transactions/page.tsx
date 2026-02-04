@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { PageHeader } from "@/components/page-header";
 import { Calendar } from "@/components/calendar/calendar";
 import { getTransactionsByMonth } from "@/app/actions/transactions";

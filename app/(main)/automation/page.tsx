@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { PageHeader } from "@/components/page-header";
 import { AutomationContent } from "@/components/automation/automation-content";
 import { getFixedExpenses } from "@/app/actions/fixed-expenses";

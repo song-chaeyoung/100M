@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { PageHeader } from "@/components/page-header";
 import { GoalProgressCard } from "@/components/home/goal-progress-card";
 import { MonthlySummaryCards } from "@/components/home/monthly-summary-cards";

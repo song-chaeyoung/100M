@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
