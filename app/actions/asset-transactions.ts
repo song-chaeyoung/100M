@@ -7,7 +7,8 @@ import {
   assets,
   type AssetTransactionType,
 } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lte } from "drizzle-orm";
+import dayjs from "dayjs";
 import { sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
@@ -156,7 +157,11 @@ export async function getAssetTransactions(assetId?: number) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
-    const conditions = [eq(assetTransactions.userId, session.user.id)];
+    const today = dayjs().format("YYYY-MM-DD");
+    const conditions = [
+      eq(assetTransactions.userId, session.user.id),
+      lte(assetTransactions.date, today),
+    ];
     if (assetId) {
       conditions.push(eq(assetTransactions.assetId, assetId));
     }
