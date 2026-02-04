@@ -33,7 +33,10 @@ export async function createFixedSaving(data: FixedSavingInput) {
 
     const parsed = fixedSavingSchema.safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     // 자산 계좌가 본인 소유인지 확인
@@ -89,7 +92,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
         await updateAssetBalance(
           parsed.data.assetId,
           parsed.data.amount.toString(),
-          "add"
+          "add",
         );
       }
 
@@ -123,7 +126,7 @@ export async function getFixedSavings() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -151,10 +154,10 @@ export async function getFixedSavings() {
       .where(eq(fixedSavings.userId, session.user.id))
       .orderBy(fixedSavings.scheduledDay);
 
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching fixed savings:", error);
-    throw new Error("고정 저축 조회에 실패했습니다.");
+    return { success: false, error: "고정 저축 조회에 실패했습니다." };
   }
 }
 
@@ -229,7 +232,10 @@ export async function updateFixedSaving(
 
     const parsed = fixedSavingSchema.partial().safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     // assetId가 변경되면 본인 소유인지 확인
@@ -499,7 +505,7 @@ export async function toggleFixedSavingActive(id: number) {
             await updateAssetBalance(
               existing[0].assetId,
               existing[0].amount,
-              "add"
+              "add",
             );
           }
 

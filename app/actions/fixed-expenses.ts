@@ -27,7 +27,10 @@ export async function createFixedExpense(data: FixedExpenseInput) {
 
     const parsed = fixedExpenseSchema.safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     // 1. 고정 지출 생성
@@ -84,7 +87,7 @@ export async function getFixedExpenses() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -115,10 +118,10 @@ export async function getFixedExpenses() {
       .where(eq(fixedExpenses.userId, session.user.id))
       .orderBy(fixedExpenses.scheduledDay);
 
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching fixed expenses:", error);
-    throw new Error("고정 지출 조회에 실패했습니다.");
+    return { success: false, error: "고정 지출 조회에 실패했습니다." };
   }
 }
 
@@ -204,7 +207,10 @@ export async function updateFixedExpense(
 
     const parsed = fixedExpenseSchema.partial().safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     // 1. 미래 날짜의 고정 지출 거래 삭제 (오늘 이후)

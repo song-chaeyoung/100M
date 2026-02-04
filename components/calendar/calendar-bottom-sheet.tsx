@@ -10,6 +10,7 @@ import { getTransactionsByDate } from "@/app/actions/transactions";
 import type { Category } from "@/lib/api/categories";
 import type { Transaction } from "@/db/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 interface CalendarBottomSheetProps {
   open: boolean;
@@ -41,10 +42,16 @@ export function CalendarBottomSheet({
       if (open && selectedDate) {
         setIsLoading(true);
         try {
-          const data = await getTransactionsByDate(selectedDate);
-          setTransactions(data);
+          const result = await getTransactionsByDate(selectedDate);
+          if (result.success && result.data) {
+            setTransactions(result.data);
+          } else {
+            toast.error(result.error);
+            setTransactions([]);
+          }
         } catch (error) {
-          console.error("Failed to fetch transactions:", error);
+          toast.error("거래 내역 조회에 실패했습니다.");
+          setTransactions([]);
         } finally {
           setIsLoading(false);
         }
@@ -76,10 +83,16 @@ export function CalendarBottomSheet({
       if (selectedDate) {
         setIsLoading(true);
         try {
-          const data = await getTransactionsByDate(selectedDate);
-          setTransactions(data);
+          const result = await getTransactionsByDate(selectedDate);
+          if (result.success && result.data) {
+            setTransactions(result.data);
+          } else {
+            toast.error(result.error);
+            setTransactions([]);
+          }
         } catch (error) {
-          console.error("Failed to fetch transactions:", error);
+          toast.error("거래 내역 조회에 실패했습니다.");
+          setTransactions([]);
         } finally {
           setIsLoading(false);
         }
@@ -170,13 +183,17 @@ export function CalendarBottomSheet({
                             <>
                               <span>•</span>
                               <span>
-                                {transaction.method === "CARD" ? "카드" : "현금"}
+                                {transaction.method === "CARD"
+                                  ? "카드"
+                                  : "현금"}
                               </span>
                             </>
                           )}
                         </div>
                       </div>
-                      <span className={`text-sm font-semibold ${getTypeStyle()}`}>
+                      <span
+                        className={`text-sm font-semibold ${getTypeStyle()}`}
+                      >
                         {getTypePrefix()}
                         {parseInt(transaction.amount).toLocaleString()}원
                       </span>

@@ -17,13 +17,11 @@ import {
  * @param month - "YYYY-MM" 형식의 월
  * @returns 날짜별 수입/지출 여부 배열
  */
-export async function getTransactionsByMonth(
-  month: string,
-): Promise<TransactionSummary[]> {
+export async function getTransactionsByMonth(month: string) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const startDate = dayjs(month).startOf("month").format("YYYY-MM-DD");
@@ -47,7 +45,12 @@ export async function getTransactionsByMonth(
       (acc, tx) => {
         const dateKey = tx.date;
         if (!acc[dateKey]) {
-          acc[dateKey] = { date: dateKey, hasIncome: false, hasExpense: false, hasSaving: false };
+          acc[dateKey] = {
+            date: dateKey,
+            hasIncome: false,
+            hasExpense: false,
+            hasSaving: false,
+          };
         }
         if (tx.type === "INCOME") acc[dateKey].hasIncome = true;
         if (tx.type === "EXPENSE") acc[dateKey].hasExpense = true;
@@ -57,10 +60,10 @@ export async function getTransactionsByMonth(
       {} as Record<string, TransactionSummary>,
     );
 
-    return Object.values(summary);
+    return { success: true, data: Object.values(summary) };
   } catch (error) {
     console.error("Error fetching transactions:", error);
-    return [];
+    return { success: false, error: "거래 내역 조회에 실패했습니다." };
   }
 }
 
@@ -73,7 +76,7 @@ export async function getTransactionsByDate(date: string) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -108,10 +111,10 @@ export async function getTransactionsByDate(date: string) {
       )
       .orderBy(transactions.createdAt);
 
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching transactions by date:", error);
-    return [];
+    return { success: false, error: "거래 내역 조회에 실패했습니다." };
   }
 }
 
@@ -163,10 +166,7 @@ export async function createTransaction(data: TransactionInput) {
  * @param data - 수정할 데이터
  * @returns 수정 결과
  */
-export async function updateTransaction(
-  id: number,
-  data: TransactionInput,
-) {
+export async function updateTransaction(id: number, data: TransactionInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -184,10 +184,7 @@ export async function updateTransaction(
       .select()
       .from(transactions)
       .where(
-        and(
-          eq(transactions.id, id),
-          eq(transactions.userId, session.user.id),
-        ),
+        and(eq(transactions.id, id), eq(transactions.userId, session.user.id)),
       )
       .limit(1);
 
@@ -236,10 +233,7 @@ export async function deleteTransaction(id: number) {
       .select()
       .from(transactions)
       .where(
-        and(
-          eq(transactions.id, id),
-          eq(transactions.userId, session.user.id),
-        ),
+        and(eq(transactions.id, id), eq(transactions.userId, session.user.id)),
       )
       .limit(1);
 

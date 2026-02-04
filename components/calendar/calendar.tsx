@@ -58,10 +58,11 @@ export function Calendar({
       const data = await getTransactionsByMonth(month);
       setSlides((prev) => {
         const newSlides = [...prev];
-        newSlides[index] = { month, transactions: data };
+        if (!data.data) return prev;
+        newSlides[index] = { month, transactions: data.data };
         return newSlides;
       });
-      return data;
+      return data.data || [];
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
       return [];

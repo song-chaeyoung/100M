@@ -20,7 +20,10 @@ export async function createAsset(data: AssetInput) {
 
     const parsed = assetSchema.safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     const [result] = await db
@@ -56,7 +59,7 @@ export async function getAssets() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -78,10 +81,10 @@ export async function getAssets() {
       .where(eq(assets.userId, session.user.id))
       .orderBy(assets.name);
 
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching assets:", error);
-    throw new Error("자산 계좌 조회에 실패했습니다.");
+    return { success: false, error: "자산 계좌 조회에 실패했습니다." };
   }
 }
 
@@ -92,7 +95,7 @@ export async function getAssetById(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return null;
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -114,10 +117,15 @@ export async function getAssetById(id: number) {
       .where(and(eq(assets.id, id), eq(assets.userId, session.user.id)))
       .limit(1);
 
-    return result[0] || null;
+    const asset = result[0];
+    if (!asset) {
+      return { success: false, error: "자산을 찾을 수 없습니다." };
+    }
+
+    return { success: true, data: asset };
   } catch (error) {
     console.error("Error fetching asset:", error);
-    return null;
+    return { success: false, error: "자산 조회에 실패했습니다." };
   }
 }
 
@@ -144,7 +152,10 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
 
     const parsed = assetSchema.partial().safeParse(data);
     if (!parsed.success) {
-      return { success: false, error: z.flattenError(parsed.error).fieldErrors };
+      return {
+        success: false,
+        error: z.flattenError(parsed.error).fieldErrors,
+      };
     }
 
     const updateData: Record<string, unknown> = {

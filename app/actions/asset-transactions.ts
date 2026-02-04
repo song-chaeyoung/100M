@@ -20,9 +20,7 @@ import { z } from "zod";
 /**
  * 거래 타입에 따른 잔액 연산 방향 결정
  */
-function getBalanceOperation(
-  type: AssetTransactionType
-): "add" | "subtract" {
+function getBalanceOperation(type: AssetTransactionType): "add" | "subtract" {
   return type === "DEPOSIT" || type === "PROFIT" ? "add" : "subtract";
 }
 
@@ -32,7 +30,7 @@ function getBalanceOperation(
 export async function updateAssetBalance(
   assetId: number,
   amount: string,
-  operation: "add" | "subtract"
+  operation: "add" | "subtract",
 ) {
   await db
     .update(assets)
@@ -83,7 +81,7 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
         .select()
         .from(assets)
         .where(
-          and(eq(assets.id, parsed.data.toAssetId), eq(assets.userId, userId))
+          and(eq(assets.id, parsed.data.toAssetId), eq(assets.userId, userId)),
         )
         .limit(1);
 
@@ -144,7 +142,6 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Error creating asset transaction:", error);
     return { success: false, error: "자산 거래 생성에 실패했습니다." };
   }
 }
@@ -156,7 +153,7 @@ export async function getAssetTransactions(assetId?: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return [];
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const conditions = [eq(assetTransactions.userId, session.user.id)];
@@ -190,10 +187,10 @@ export async function getAssetTransactions(assetId?: number) {
       .where(and(...conditions))
       .orderBy(desc(assetTransactions.date), desc(assetTransactions.createdAt));
 
-    return result;
+    return { success: true, data: result };
   } catch (error) {
     console.error("Error fetching asset transactions:", error);
-    return [];
+    return { success: false, error: "자산 거래 목록 조회에 실패했습니다." };
   }
 }
 
@@ -204,7 +201,7 @@ export async function getAssetTransactionById(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return null;
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -233,15 +230,20 @@ export async function getAssetTransactionById(id: number) {
       .where(
         and(
           eq(assetTransactions.id, id),
-          eq(assetTransactions.userId, session.user.id)
-        )
+          eq(assetTransactions.userId, session.user.id),
+        ),
       )
       .limit(1);
 
-    return result[0] || null;
+    const transaction = result[0];
+    if (!transaction) {
+      return { success: false, error: "거래 내역을 찾을 수 없습니다." };
+    }
+
+    return { success: true, data: transaction };
   } catch (error) {
     console.error("Error fetching asset transaction:", error);
-    return null;
+    return { success: false, error: "거래 내역 조회에 실패했습니다." };
   }
 }
 
@@ -250,7 +252,7 @@ export async function getAssetTransactionById(id: number) {
  */
 export async function updateAssetTransaction(
   id: number,
-  data: Partial<AssetTransactionInput>
+  data: Partial<AssetTransactionInput>,
 ) {
   try {
     const session = await auth();
@@ -265,10 +267,7 @@ export async function updateAssetTransaction(
       .select()
       .from(assetTransactions)
       .where(
-        and(
-          eq(assetTransactions.id, id),
-          eq(assetTransactions.userId, userId)
-        )
+        and(eq(assetTransactions.id, id), eq(assetTransactions.userId, userId)),
       )
       .limit(1);
 
@@ -340,7 +339,7 @@ export async function updateAssetTransaction(
             balance: sql`${assets.balance} - ${existing[0].amount}`,
             updatedAt: new Date(),
           })
-          .where(eq(assets.id, existing[0].toAssetId))
+          .where(eq(assets.id, existing[0].toAssetId)),
       );
     }
 
@@ -351,7 +350,7 @@ export async function updateAssetTransaction(
         .update(assetTransactions)
         .set(updateData)
         .where(eq(assetTransactions.id, id))
-        .returning()
+        .returning(),
     );
 
     // 3. 새 잔액 적용
@@ -365,7 +364,7 @@ export async function updateAssetTransaction(
               : sql`${assets.balance} - ${newAmount}`,
           updatedAt: new Date(),
         })
-        .where(eq(assets.id, newAssetId))
+        .where(eq(assets.id, newAssetId)),
     );
 
     if (newType === "TRANSFER" && newToAssetId) {
@@ -376,12 +375,12 @@ export async function updateAssetTransaction(
             balance: sql`${assets.balance} + ${newAmount}`,
             updatedAt: new Date(),
           })
-          .where(eq(assets.id, newToAssetId))
+          .where(eq(assets.id, newToAssetId)),
       );
     }
 
     const results = await db.batch(
-      queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]
+      queries as [BatchItem<"pg">, ...BatchItem<"pg">[]],
     );
     const updated = results[returningIndex][0];
 
@@ -412,8 +411,8 @@ export async function deleteAssetTransaction(id: number) {
       .where(
         and(
           eq(assetTransactions.id, id),
-          eq(assetTransactions.userId, session.user.id)
-        )
+          eq(assetTransactions.userId, session.user.id),
+        ),
       )
       .limit(1);
 

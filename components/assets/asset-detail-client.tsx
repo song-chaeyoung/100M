@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
@@ -14,21 +14,34 @@ import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 interface AssetDetailClientProps {
-  asset: Asset;
+  asset: Asset | null;
   transactions: AssetTransaction[];
   allAssets: Asset[];
+  errors?: (string | undefined)[];
 }
 
 export function AssetDetailClient({
   asset,
   transactions,
   allAssets,
+  errors,
 }: AssetDetailClientProps) {
   const [transactionSheet, setTransactionSheet] = useState<
     AssetTransaction | "new" | null
   >(null);
   const [assetFormSheetOpen, setAssetFormSheetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+
+  // 에러 메시지를 toast로 표시
+  useEffect(() => {
+    if (errors && errors.length > 0) {
+      errors.forEach((error) => {
+        if (error) {
+          toast.error(error);
+        }
+      });
+    }
+  }, [errors]);
 
   const handleAddTransaction = () => {
     setTransactionSheet("new");
@@ -65,6 +78,22 @@ export function AssetDetailClient({
   const handleCloseForm = () => {
     setTransactionSheet(null);
   };
+
+  // asset이 없을 때 fallback UI
+  if (!asset) {
+    return (
+      <div className="container mx-auto p-4 space-y-6 pb-24">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
+          <h2 className="text-lg font-semibold text-destructive mb-2">
+            자산 정보를 불러올 수 없습니다
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            자산 정보 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6 pb-24">

@@ -45,26 +45,30 @@ async function getCategoriesInternal(
  * 카테고리 목록 조회 (사용자 카테고리 + 기본 카테고리)
  * Next.js unstable_cache로 캐싱
  */
-export async function getCategories(
-  type?: CategoryType,
-): Promise<Category[]> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+export async function getCategories(type?: CategoryType) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userId = session.user.id;
+
+    const cacheKey = type ? `categories-${type}` : "categories-all";
+
+    const getCachedCategories = unstable_cache(
+      async () => getCategoriesInternal(userId, type),
+      [cacheKey, userId],
+      {
+        tags: [`user-${userId}-categories`],
+        revalidate: 10800, // 3시간 캐시
+      },
+    );
+
+    const data = await getCachedCategories();
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return { success: false, error: "카테고리 조회에 실패했습니다." };
   }
-
-  const userId = session.user.id;
-
-  const cacheKey = type ? `categories-${type}` : "categories-all";
-
-  const getCachedCategories = unstable_cache(
-    async () => getCategoriesInternal(userId, type),
-    [cacheKey, userId],
-    {
-      tags: [`user-${userId}-categories`],
-      revalidate: 10800, // 3시간 캐시
-    },
-  );
-
-  return getCachedCategories();
 }

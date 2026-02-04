@@ -27,15 +27,11 @@ export interface DashboardData {
  * 대시보드 데이터 조회 (Server Action)
  * @returns 목표, 전체 요약, 이번 달 요약 데이터
  */
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return {
-        goal: { targetAmount: 0, initialAmount: 0 },
-        totalSummary: { totalIncome: 0, totalExpense: 0, totalAssets: 0 },
-        monthlySummary: { income: 0, expense: 0, saving: 0 },
-      };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -60,10 +56,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       })
       .from(transactions)
       .where(
-        and(
-          eq(transactions.userId, userId),
-          lte(transactions.date, today)
-        )
+        and(eq(transactions.userId, userId), lte(transactions.date, today)),
       );
 
     const [assetSummary] = await db
@@ -84,11 +77,11 @@ export async function getDashboardData(): Promise<DashboardData> {
         and(
           eq(transactions.userId, userId),
           gte(transactions.date, monthStart),
-          lte(transactions.date, monthEnd)
-        )
+          lte(transactions.date, monthEnd),
+        ),
       );
 
-    return {
+    const data: DashboardData = {
       goal: activeGoal
         ? {
             targetAmount: Number(activeGoal.targetAmount),
@@ -106,12 +99,10 @@ export async function getDashboardData(): Promise<DashboardData> {
         saving: Number(monthlySummary?.saving ?? 0),
       },
     };
+
+    return { success: true, data };
   } catch (error) {
     console.error("Error fetching dashboard data:", error);
-    return {
-      goal: { targetAmount: 0, initialAmount: 0 },
-      totalSummary: { totalIncome: 0, totalExpense: 0, totalAssets: 0 },
-      monthlySummary: { income: 0, expense: 0, saving: 0 },
-    };
+    return { success: false, error: "대시보드 데이터 조회에 실패했습니다." };
   }
 }

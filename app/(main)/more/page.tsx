@@ -14,11 +14,12 @@ import {
   updateInitialAmount,
   type GoalData,
 } from "@/app/actions/goals";
+import { toast } from "sonner";
 
 export default function MorePage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [goal, setGoal] = useState<GoalData | null>(null);
+  const [goal, setGoal] = useState<GoalData | undefined>(undefined);
 
   // 모달 상태
   const [goalModalOpen, setGoalModalOpen] = useState<
@@ -27,8 +28,14 @@ export default function MorePage() {
 
   // 목표 데이터 조회
   const fetchGoal = useCallback(async () => {
-    const data = await getGoal();
-    setGoal(data);
+    const result = await getGoal();
+
+    if (result.success) {
+      setGoal(result.data);
+    } else {
+      toast.error(result.error || "목표 조회에 실패했습니다.");
+      setGoal(undefined);
+    }
   }, []);
 
   useEffect(() => {

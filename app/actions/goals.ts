@@ -15,11 +15,11 @@ export interface GoalData {
 /**
  * 활성 목표 조회
  */
-export async function getGoal(): Promise<GoalData | null> {
+export async function getGoal() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return null;
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const [activeGoal] = await db
@@ -33,17 +33,19 @@ export async function getGoal(): Promise<GoalData | null> {
       .limit(1);
 
     if (!activeGoal) {
-      return null;
+      return { success: false, error: "활성 목표를 찾을 수 없습니다." };
     }
 
-    return {
+    const data: GoalData = {
       id: activeGoal.id,
       targetAmount: Number(activeGoal.targetAmount),
       initialAmount: Number(activeGoal.initialAmount),
     };
+
+    return { success: true, data };
   } catch (error) {
     console.error("Error fetching goal:", error);
-    return null;
+    return { success: false, error: "목표 조회에 실패했습니다." };
   }
 }
 
@@ -52,7 +54,7 @@ export async function getGoal(): Promise<GoalData | null> {
  */
 export async function updateTargetAmount(
   goalId: number,
-  targetAmount: number
+  targetAmount: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await auth();
@@ -70,8 +72,8 @@ export async function updateTargetAmount(
         and(
           eq(goals.id, goalId),
           eq(goals.userId, session.user.id),
-          eq(goals.isActive, true)
-        )
+          eq(goals.isActive, true),
+        ),
       );
 
     revalidatePath("/");
@@ -89,7 +91,7 @@ export async function updateTargetAmount(
  */
 export async function updateInitialAmount(
   goalId: number,
-  initialAmount: number
+  initialAmount: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await auth();
@@ -107,8 +109,8 @@ export async function updateInitialAmount(
         and(
           eq(goals.id, goalId),
           eq(goals.userId, session.user.id),
-          eq(goals.isActive, true)
-        )
+          eq(goals.isActive, true),
+        ),
       );
 
     revalidatePath("/");
