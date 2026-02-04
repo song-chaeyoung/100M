@@ -29,6 +29,20 @@
       "when": 1769866390251,
       "tag": "0003_robust_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770167444936,
+      "tag": "0004_rapid_kylun",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770167656551,
+      "tag": "0005_hard_puck",
+      "breakpoints": true
     }
   ]
 }
