@@ -232,8 +232,11 @@ export function FixedExpenseFormSheet({
                   type="number"
                   min={1}
                   max={31}
-                  value={field.value}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  value={field.value || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === "" ? "" : Number(value));
+                  }}
                   className="w-20 text-center"
                 />
                 <span className="text-muted-foreground">일</span>
