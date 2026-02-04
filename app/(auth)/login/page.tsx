@@ -75,7 +75,7 @@ export default function LoginPage() {
       </div>
 
       {/* 하단 약관 */}
-      <div className="mt-8 text-center">
+      {/* <div className="mt-8 text-center">
         <p className="text-xs text-muted-foreground">
           로그인하면{" "}
           <a href="#" className="underline">
@@ -87,7 +87,7 @@ export default function LoginPage() {
           </a>
           에 동의하게 됩니다.
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }
