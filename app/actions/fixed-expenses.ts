@@ -247,20 +247,25 @@ export async function updateFixedExpense(
       .where(eq(fixedExpenses.id, id))
       .returning();
 
-    // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만)
+    // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만, 오늘 이후만)
     if (updated.isActive) {
       const startMonth =
         parsed.data.startDate || existing[0].startDate?.slice(0, 7);
       const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
 
       if (startMonth && endMonth) {
-        const months = getMonthsBetween(startMonth, endMonth);
         const scheduledDay =
           parsed.data.scheduledDay ?? existing[0].scheduledDay;
         const amount = parsed.data.amount?.toString() ?? existing[0].amount;
         const categoryId = parsed.data.categoryId ?? existing[0].categoryId;
         const method = parsed.data.method ?? existing[0].method;
         const title = parsed.data.title ?? existing[0].title;
+
+        // 오늘 이후 날짜의 월만 필터링
+        const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          return date >= today;
+        });
 
         const transactionsToInsert = months.map((month) => ({
           userId,
@@ -374,17 +379,25 @@ export async function toggleFixedExpenseActive(id: number) {
           ),
         );
     } else {
-      // 활성화 시 예정 거래 재생성
+      // 활성화 시 예정 거래 재생성 (오늘 이후만)
+      const today = dayjs().format("YYYY-MM-DD");
       const startMonth = existing[0].startDate?.slice(0, 7);
       const endMonth = existing[0].endDate?.slice(0, 7);
 
       if (startMonth && endMonth) {
-        const months = getMonthsBetween(startMonth, endMonth);
+        const scheduledDay = existing[0].scheduledDay;
+
+        // 오늘 이후 날짜의 월만 필터링
+        const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          return date >= today;
+        });
+
         const transactionsToInsert = months.map((month) => ({
           userId,
           type: "EXPENSE" as const,
           amount: existing[0].amount,
-          date: `${month}-${String(existing[0].scheduledDay).padStart(2, "0")}`,
+          date: `${month}-${String(scheduledDay).padStart(2, "0")}`,
           categoryId: existing[0].categoryId,
           method: existing[0].method,
           memo: existing[0].title,

@@ -304,19 +304,24 @@ export async function updateFixedSaving(
       .where(eq(fixedSavings.id, id))
       .returning();
 
-    // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만)
+    // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만, 오늘 이후만)
     if (updated.isActive) {
       const startMonth =
         parsed.data.startDate || existing[0].startDate?.slice(0, 7);
       const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
 
       if (startMonth && endMonth) {
-        const months = getMonthsBetween(startMonth, endMonth);
         const scheduledDay =
           parsed.data.scheduledDay ?? existing[0].scheduledDay;
         const amount = parsed.data.amount?.toString() ?? existing[0].amount;
         const assetId = parsed.data.assetId ?? existing[0].assetId;
         const title = parsed.data.title ?? existing[0].title;
+
+        // 오늘 이후 날짜의 월만 필터링
+        const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          return date >= today;
+        });
 
         for (const month of months) {
           const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
@@ -477,15 +482,21 @@ export async function toggleFixedSavingActive(id: number) {
           ),
         );
     } else {
-      // 활성화 시 예정 거래 재생성
+      // 활성화 시 예정 거래 재생성 (오늘 이후만)
       const startMonth = existing[0].startDate?.slice(0, 7);
       const endMonth = existing[0].endDate?.slice(0, 7);
 
       if (startMonth && endMonth) {
-        const months = getMonthsBetween(startMonth, endMonth);
+        const scheduledDay = existing[0].scheduledDay;
+
+        // 오늘 이후 날짜의 월만 필터링
+        const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          return date >= today;
+        });
 
         for (const month of months) {
-          const date = `${month}-${String(existing[0].scheduledDay).padStart(2, "0")}`;
+          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
 
           const [assetTx] = await db
             .insert(assetTransactions)
