@@ -37,7 +37,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} handleOnly>
-      <DrawerContent className={cn("max-h-[90vh]", className)}>
+      <DrawerContent className={cn("max-h-[90dvh]", className)}>
         {/* 드래그 핸들 (Drawer에 기본 포함) */}
 
         {/* 헤더 */}
