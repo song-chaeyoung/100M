@@ -21,6 +21,12 @@ const pretendard = localFont({
 export const metadata: Metadata = {
   title: "일억모으기",
   description: "가계부 앱",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({

@@ -17,7 +17,9 @@ export default async function MainLayout({
 
   return (
     <>
-      <div className="relative min-h-screen pb-16">{children}</div>
+      <div className="relative h-svh pb-16 overflow-hidden">
+        <div className="h-full overflow-y-auto">{children}</div>
+      </div>
       <BottomNavigation />
     </>
   );

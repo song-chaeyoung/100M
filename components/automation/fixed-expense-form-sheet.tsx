@@ -177,6 +177,7 @@ export function FixedExpenseFormSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={mode === "create" ? "고정 지출 추가" : "고정 지출 수정"}
+      className="min-h-svh max-h-svh"
     >
       <div className="space-y-6 py-4">
         <div className="space-y-2">

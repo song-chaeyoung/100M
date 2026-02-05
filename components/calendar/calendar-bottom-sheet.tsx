@@ -110,7 +110,7 @@ export function CalendarBottomSheet({
       >
         <div className="space-y-4">
           {/* 거래 내역 리스트 영역 */}
-          <div className="">
+          <>
             {isLoading ? (
               <div className="space-y-3">
                 {[1, 2].map((i) => (
@@ -204,7 +204,7 @@ export function CalendarBottomSheet({
             ) : (
               <Fragment></Fragment>
             )}
-          </div>
+          </>
 
           {/* 추가 버튼 */}
           <Button onClick={handleAddTransaction} className="w-full" size="lg">
