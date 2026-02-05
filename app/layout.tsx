@@ -29,6 +29,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "일억모으기",
   description: "가계부 앱",
+  icons: {
+    apple: "/logo.PNG",
+  },
 };
 
 export default function RootLayout({
