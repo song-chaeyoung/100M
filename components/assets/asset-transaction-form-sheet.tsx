@@ -177,7 +177,6 @@ export function AssetTransactionFormSheet({
       onOpenChange={onOpenChange}
       title={isEditMode ? "거래 수정" : "거래 추가"}
       description="입출금 내역을 기록합니다"
-      className="min-h-[80svh] max-h-svh"
     >
       <div className="space-y-6 py-4">
         {/* 거래 타입 선택 */}

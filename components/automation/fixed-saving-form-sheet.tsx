@@ -166,7 +166,6 @@ export function FixedSavingFormSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={mode === "create" ? "고정 저축 추가" : "고정 저축 수정"}
-      className="min-h-svh max-h-svh"
     >
       <div className="space-y-6 py-4">
         <div className="space-y-2">

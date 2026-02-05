@@ -141,7 +141,6 @@ export function AssetFormSheet({
       onOpenChange={onOpenChange}
       title={isEditMode ? "자산 수정" : "자산 추가"}
       description="자산 계좌 정보를 입력하세요"
-      className="min-h-[80svh] max-h-svh"
     >
       <div className="space-y-6 py-4">
         {/* 자산 이름 */}
