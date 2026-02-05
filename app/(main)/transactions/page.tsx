@@ -7,16 +7,6 @@ import type { TransactionSummary } from "@/lib/api/types";
 import type { Category } from "@/db/schema";
 import dayjs from "dayjs";
 
-export const metadata = {
-  title: "일억모으기",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    interactiveWidget: "resizes-content",
-  },
-};
-
 export default async function TransactionsPage() {
   const currentMonth = dayjs().format("YYYY-MM");
 
