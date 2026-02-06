@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { BottomSheet } from "@/components/bottom-sheet";
 import { formatAmount } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -19,7 +12,7 @@ function parseNumber(value: string): number {
   return Number(value.replace(/[^\d]/g, "")) || 0;
 }
 
-interface AmountEditModalProps {
+interface AmountEditBottomSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -29,7 +22,7 @@ interface AmountEditModalProps {
   onSave: (value: number) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function AmountEditModal({
+export function AmountEditBottomSheet({
   open,
   onOpenChange,
   title,
@@ -37,7 +30,7 @@ export function AmountEditModal({
   placeholder,
   initialValue,
   onSave,
-}: AmountEditModalProps) {
+}: AmountEditBottomSheetProps) {
   const [inputValue, setInputValue] = useState(
     formatAmount(initialValue.toString()),
   );
@@ -63,32 +56,19 @@ export function AmountEditModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        onOpenAutoFocus={() =>
-          setInputValue(formatAmount(initialValue.toString()))
+    <BottomSheet
+      open={open}
+      onOpenChange={(next) => {
+        if (next) {
+          setInputValue(formatAmount(initialValue.toString()));
         }
-      >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              ₩
-            </span>
-            <Input
-              type="text"
-              inputMode="numeric"
-              value={inputValue}
-              onChange={handleInputChange}
-              placeholder={placeholder}
-              className="pl-7"
-            />
-          </div>
-        </div>
-        <DialogFooter>
+        onOpenChange(next);
+      }}
+      title={title}
+      description={description}
+      showCloseButton={false}
+      footer={
+        <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -104,8 +84,22 @@ export function AmountEditModal({
           >
             저장
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      }
+    >
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          ₩
+        </span>
+        <Input
+          type="text"
+          inputMode="numeric"
+          value={inputValue}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className="pl-7"
+        />
+      </div>
+    </BottomSheet>
   );
 }

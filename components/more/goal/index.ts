@@ -1,1 +1,1 @@
-export { AmountEditModal } from "./amount-edit-modal";
+export { AmountEditBottomSheet } from "./amount-edit-bottom-sheet";

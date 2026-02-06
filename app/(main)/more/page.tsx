@@ -7,7 +7,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Monitor, Moon, Sun, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AmountEditModal } from "@/components/more/goal";
+import { AmountEditBottomSheet } from "@/components/more/goal/amount-edit-bottom-sheet";
 import {
   getGoal,
   updateTargetAmount,
@@ -189,7 +189,12 @@ export default function MorePage() {
       </div>
 
       {/* 목표 금액 수정 모달 */}
-      <AmountEditModal
+      <AmountEditBottomSheet
+        key={
+          goalModalOpen === "target"
+            ? (goal?.targetAmount ?? 0)
+            : "target-closed"
+        }
         open={goalModalOpen === "target"}
         onOpenChange={() => setGoalModalOpen(null)}
         title="목표 금액 변경"
@@ -200,7 +205,12 @@ export default function MorePage() {
       />
 
       {/* 초기 자금 수정 모달 */}
-      <AmountEditModal
+      <AmountEditBottomSheet
+        key={
+          goalModalOpen === "initial"
+            ? (goal?.initialAmount ?? 0)
+            : "initial-closed"
+        }
         open={goalModalOpen === "initial"}
         onOpenChange={() => setGoalModalOpen(null)}
         title="초기 자금 변경"
