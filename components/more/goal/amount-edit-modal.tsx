@@ -71,7 +71,7 @@ export function AmountEditModal({
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         onOpenAutoFocus={() =>
           setInputValue(formatAmount(initialValue.toString()))
