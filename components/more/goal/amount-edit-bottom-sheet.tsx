@@ -87,7 +87,7 @@ export function AmountEditBottomSheet({
         </div>
       }
     >
-      <div className="relative">
+      <div className="relative mt-4">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
           ₩
         </span>
@@ -98,6 +98,7 @@ export function AmountEditBottomSheet({
           onChange={handleInputChange}
           placeholder={placeholder}
           className="pl-7"
+          autoFocus
         />
       </div>
     </BottomSheet>
