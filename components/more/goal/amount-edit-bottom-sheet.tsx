@@ -57,7 +57,6 @@ export function AmountEditBottomSheet({
 
   return (
     <BottomSheet
-      key={String(open)}
       open={open}
       onOpenChange={(next) => {
         if (next) {
@@ -68,6 +67,7 @@ export function AmountEditBottomSheet({
       title={title}
       description={description}
       showCloseButton={false}
+      repositionInputs={false}
       footer={
         <div className="flex gap-2">
           <Button

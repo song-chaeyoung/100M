@@ -23,6 +23,7 @@ interface BottomSheetProps {
   footer?: React.ReactNode;
   showCloseButton?: boolean;
   className?: string;
+  repositionInputs?: boolean;
 }
 
 export function BottomSheet({
@@ -34,9 +35,10 @@ export function BottomSheet({
   footer,
   showCloseButton = true,
   className,
+  repositionInputs = true,
 }: BottomSheetProps) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} handleOnly>
+    <Drawer open={open} onOpenChange={onOpenChange} handleOnly repositionInputs={repositionInputs}>
       <DrawerContent className={cn("max-h-[90dvh]", className)}>
         {/* 드래그 핸들 (Drawer에 기본 포함) */}
 
