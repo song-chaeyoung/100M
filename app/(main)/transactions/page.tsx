@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { Calendar } from "@/components/calendar/calendar";
 import { getTransactionsByMonth } from "@/app/actions/transactions";
@@ -6,6 +7,10 @@ import { handleApiResults } from "@/lib/utils/api-handler";
 import type { TransactionSummary } from "@/lib/api/types";
 import type { Category } from "@/db/schema";
 import dayjs from "dayjs";
+
+export const metadata: Metadata = {
+  title: "가계부",
+};
 
 export default async function TransactionsPage() {
   const currentMonth = dayjs().format("YYYY-MM");

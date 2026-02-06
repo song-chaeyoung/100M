@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { AutomationContent } from "@/components/automation/automation-content";
 import { getFixedExpenses } from "@/app/actions/fixed-expenses";
@@ -8,6 +9,10 @@ import { handleApiResults } from "@/lib/utils/api-handler";
 import type { FixedExpense, FixedSaving } from "@/lib/types/automation";
 import type { Category } from "@/db/schema";
 import type { Asset } from "@/lib/validations/asset";
+
+export const metadata: Metadata = {
+  title: "자동화",
+};
 
 export default async function AutomationPage() {
   const { data, errors } = await handleApiResults<

@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { GoalProgressCard } from "@/components/home/goal-progress-card";
 import { MonthlySummaryCards } from "@/components/home/monthly-summary-cards";
 import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
 import { handleApiResults } from "@/lib/utils/api-handler";
+
+export const metadata: Metadata = {
+  title: "홈",
+};
 
 export default async function HomePage() {
   const { data, errors } = await handleApiResults<[DashboardData | null]>(

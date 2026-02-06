@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
 import { getAssets } from "@/app/actions/assets";
 import { AssetListClient } from "@/components/assets/asset-list-client";
 import { handleApiResults } from "@/lib/utils/api-handler";
 import type { Asset } from "@/lib/validations/asset";
+
+export const metadata: Metadata = {
+  title: "자산",
+};
 
 export default async function AssetsPage() {
   const { data, errors } = await handleApiResults<[Asset[]]>([getAssets()], {

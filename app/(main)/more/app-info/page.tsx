@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
+
+export const metadata: Metadata = {
+  title: "앱 정보",
+};
 
 export default function AppInfoPage() {
   return (

@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
+
+export const metadata: Metadata = {
+  title: "개인정보 처리방침",
+};
 
 export default function PrivacyPage() {
   return (

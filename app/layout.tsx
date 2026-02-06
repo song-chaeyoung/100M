@@ -27,8 +27,31 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "일억모으기",
-  description: "가계부 앱",
+  title: {
+    default: "일억모으기",
+    template: "%s | 일억모으기",
+  },
+  description: "열심히 기록하고 일억모으자!",
+  keywords: [
+    "가계부",
+    "자산관리",
+    "저축",
+    "지출관리",
+    "목표달성",
+    "일억모으기",
+  ],
+  authors: [{ name: "일억모으기" }],
+  openGraph: {
+    title: "일억모으기",
+    description: "열심히 기록하고 일억모으자!",
+    type: "website",
+    locale: "ko_KR",
+    siteName: "일억모으기",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
   icons: {
     apple: "/logo.PNG",
   },

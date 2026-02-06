@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAssetById } from "@/app/actions/assets";
 import { getAssetTransactions } from "@/app/actions/asset-transactions";
@@ -6,6 +7,10 @@ import { AssetDetailClient } from "@/components/assets/asset-detail-client";
 import { handleApiResults } from "@/lib/utils/api-handler";
 import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
+
+export const metadata: Metadata = {
+  title: "자산 상세",
+};
 
 interface AssetDetailPageProps {
   params: Promise<{ assetId: string }>;
