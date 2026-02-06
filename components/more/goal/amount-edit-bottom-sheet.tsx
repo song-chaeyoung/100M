@@ -57,6 +57,7 @@ export function AmountEditBottomSheet({
 
   return (
     <BottomSheet
+      key={String(open)}
       open={open}
       onOpenChange={(next) => {
         if (next) {
