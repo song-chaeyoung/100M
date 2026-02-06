@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/sonner";
+import { SplashScreen } from "@/components/splash-screen";
 
 const pretendard = localFont({
   src: "../public/fonts/PretendardVariable.woff2",
@@ -73,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className={`${pretendard.variable} font-sans antialiased`}>
+        <SplashScreen />
         <SessionProvider>
           <ThemeProvider
             attribute="class"
