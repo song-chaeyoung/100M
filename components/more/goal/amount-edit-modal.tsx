@@ -14,14 +14,6 @@ import {
 import { formatAmount } from "@/lib/utils";
 import { toast } from "sonner";
 
-// 숫자를 천 단위 콤마로 포맷팅
-// function formatNumber(value: number | string): string {
-//   const num =
-//     typeof value === "string" ? value.replace(/[^\d]/g, "") : String(value);
-//   if (!num) return "";
-//   return Number(num).toLocaleString("ko-KR");
-// }
-
 // 콤마 제거하고 숫자로 변환
 function parseNumber(value: string): number {
   return Number(value.replace(/[^\d]/g, "")) || 0;
