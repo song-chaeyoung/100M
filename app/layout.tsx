@@ -47,6 +47,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     siteName: "일억모으기",
+    images: [
+      {
+        url: "/logo.PNG",
+        width: 1200,
+        height: 630,
+        alt: "일억모으기",
+      },
+    ],
   },
   robots: {
     index: false,

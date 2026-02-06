@@ -11,8 +11,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-background p-4">
       <div className="flex flex-1 flex-col justify-center">
         {/* 헤더 */}
-        <div className="mb-12 text-center">
-          <div className="mb-3 text-4xl">💰</div>
+        <div className="mb-8 text-center">
+          <img
+            src="/logo.PNG"
+            alt="logo"
+            className="w-20 h-20 mx-auto"
+            width={80}
+            height={80}
+          />
           <h1 className="mb-2 text-2xl font-semibold">일억모으기</h1>
           <p className="text-sm text-muted-foreground">
             소셜 계정으로 시작하세요
