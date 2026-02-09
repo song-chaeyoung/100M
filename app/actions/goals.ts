@@ -62,7 +62,7 @@ export async function updateTargetAmount(
       return { success: false, error: "로그인이 필요합니다." };
     }
 
-    await db
+    const [updated] = await db
       .update(goals)
       .set({
         targetAmount: String(targetAmount),
@@ -74,7 +74,12 @@ export async function updateTargetAmount(
           eq(goals.userId, session.user.id),
           eq(goals.isActive, true),
         ),
-      );
+      )
+      .returning({ id: goals.id });
+
+    if (!updated) {
+      return { success: false, error: "목표를 찾을 수 없습니다." };
+    }
 
     revalidatePath("/");
     revalidatePath("/more");
@@ -99,7 +104,7 @@ export async function updateInitialAmount(
       return { success: false, error: "로그인이 필요합니다." };
     }
 
-    await db
+    const [updated] = await db
       .update(goals)
       .set({
         initialAmount: String(initialAmount),
@@ -111,7 +116,12 @@ export async function updateInitialAmount(
           eq(goals.userId, session.user.id),
           eq(goals.isActive, true),
         ),
-      );
+      )
+      .returning({ id: goals.id });
+
+    if (!updated) {
+      return { success: false, error: "목표를 찾을 수 없습니다." };
+    }
 
     revalidatePath("/");
     revalidatePath("/more");
