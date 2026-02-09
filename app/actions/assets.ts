@@ -15,7 +15,7 @@ export async function createAsset(data: AssetInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const parsed = assetSchema.safeParse(data);
@@ -136,7 +136,7 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // 존재 여부 확인
@@ -202,7 +202,7 @@ export async function deleteAsset(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // 존재 여부 확인
@@ -236,7 +236,7 @@ export async function toggleAssetActive(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const existing = await db

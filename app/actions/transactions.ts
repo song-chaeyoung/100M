@@ -127,7 +127,7 @@ export async function createTransaction(data: TransactionInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // Zod 검증
@@ -156,7 +156,7 @@ export async function createTransaction(data: TransactionInput) {
     return { success: true, data: result[0] };
   } catch (error) {
     console.error("Error creating transaction:", error);
-    return { success: false, error: "Failed to create transaction" };
+    return { success: false, error: "거래 생성에 실패했습니다." };
   }
 }
 
@@ -170,7 +170,7 @@ export async function updateTransaction(id: number, data: TransactionInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // Zod 검증
@@ -189,7 +189,7 @@ export async function updateTransaction(id: number, data: TransactionInput) {
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Transaction not found" };
+      return { success: false, error: "거래를 찾을 수 없습니다." };
     }
 
     const result = await db
@@ -212,7 +212,7 @@ export async function updateTransaction(id: number, data: TransactionInput) {
     return { success: true, data: result[0] };
   } catch (error) {
     console.error("Error updating transaction:", error);
-    return { success: false, error: "Failed to update transaction" };
+    return { success: false, error: "거래 수정에 실패했습니다." };
   }
 }
 
@@ -225,7 +225,7 @@ export async function deleteTransaction(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // 본인의 거래인지 확인
@@ -238,7 +238,7 @@ export async function deleteTransaction(id: number) {
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Transaction not found" };
+      return { success: false, error: "거래를 찾을 수 없습니다." };
     }
 
     await db.delete(transactions).where(eq(transactions.id, id));
@@ -248,6 +248,6 @@ export async function deleteTransaction(id: number) {
     return { success: true };
   } catch (error) {
     console.error("Error deleting transaction:", error);
-    return { success: false, error: "Failed to delete transaction" };
+    return { success: false, error: "거래 삭제에 실패했습니다." };
   }
 }

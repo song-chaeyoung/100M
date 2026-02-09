@@ -25,7 +25,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -46,7 +46,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
       .limit(1);
 
     if (!asset[0]) {
-      return { success: false, error: "Asset not found" };
+      return { success: false, error: "자산을 찾을 수 없습니다." };
     }
 
     // 1. 고정 저축 생성
@@ -225,7 +225,7 @@ export async function updateFixedSaving(
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -237,7 +237,7 @@ export async function updateFixedSaving(
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Fixed saving not found" };
+      return { success: false, error: "고정 저축을 찾을 수 없습니다." };
     }
 
     const parsed = fixedSavingSchema.partial().safeParse(data);
@@ -397,7 +397,7 @@ export async function deleteFixedSaving(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const existing = await db
@@ -454,7 +454,7 @@ export async function toggleFixedSavingActive(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -466,7 +466,7 @@ export async function toggleFixedSavingActive(id: number) {
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Fixed saving not found" };
+      return { success: false, error: "고정 저축을 찾을 수 없습니다." };
     }
 
     const newIsActive = !existing[0].isActive;

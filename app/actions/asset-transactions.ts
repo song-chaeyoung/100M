@@ -52,7 +52,7 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -262,7 +262,7 @@ export async function updateAssetTransaction(
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -406,7 +406,7 @@ export async function deleteAssetTransaction(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     // 기존 거래 조회

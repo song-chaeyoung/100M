@@ -20,7 +20,7 @@ export async function createFixedExpense(data: FixedExpenseInput) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -185,7 +185,7 @@ export async function updateFixedExpense(
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -202,7 +202,7 @@ export async function updateFixedExpense(
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Fixed expense not found" };
+      return { success: false, error: "고정 지출을 찾을 수 없습니다." };
     }
 
     const parsed = fixedExpenseSchema.partial().safeParse(data);
@@ -304,7 +304,7 @@ export async function deleteFixedExpense(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const existing = await db
@@ -350,7 +350,7 @@ export async function toggleFixedExpenseActive(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const userId = session.user.id;
@@ -362,7 +362,7 @@ export async function toggleFixedExpenseActive(id: number) {
       .limit(1);
 
     if (!existing[0]) {
-      return { success: false, error: "Fixed expense not found" };
+      return { success: false, error: "고정 지출을 찾을 수 없습니다." };
     }
 
     const newIsActive = !existing[0].isActive;
