@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { goals, transactions, assets } from "@/db/schema";
-import { eq, and, sql, gte, lte } from "drizzle-orm";
+import { eq, and, sql, lte } from "drizzle-orm";
 import dayjs from "dayjs";
 
 export interface DashboardData {
@@ -38,48 +38,39 @@ export async function getDashboardData() {
     const now = dayjs();
     const today = now.format("YYYY-MM-DD");
     const monthStart = now.startOf("month").format("YYYY-MM-DD");
-    const monthEnd = now.endOf("month").format("YYYY-MM-DD");
 
-    const [activeGoal] = await db
-      .select({
-        targetAmount: goals.targetAmount,
-        initialAmount: goals.initialAmount,
-      })
-      .from(goals)
-      .where(and(eq(goals.userId, userId), eq(goals.isActive, true)))
-      .limit(1);
-
-    const [totalSummary] = await db
-      .select({
-        totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'INCOME' THEN ${transactions.amount} ELSE 0 END), 0)`,
-        totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'EXPENSE' THEN ${transactions.amount} ELSE 0 END), 0)`,
-      })
-      .from(transactions)
-      .where(
-        and(eq(transactions.userId, userId), lte(transactions.date, today)),
-      );
-
-    const [assetSummary] = await db
-      .select({
-        totalAssets: sql<string>`COALESCE(SUM(${assets.balance}), 0)`,
-      })
-      .from(assets)
-      .where(and(eq(assets.userId, userId), eq(assets.isActive, true)));
-
-    const [monthlySummary] = await db
-      .select({
-        income: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'INCOME' THEN ${transactions.amount} ELSE 0 END), 0)`,
-        expense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'EXPENSE' THEN ${transactions.amount} ELSE 0 END), 0)`,
-        saving: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'SAVING' THEN ${transactions.amount} ELSE 0 END), 0)`,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.userId, userId),
-          gte(transactions.date, monthStart),
-          lte(transactions.date, monthEnd),
-        ),
-      );
+    const [[activeGoal], [transactionSummary], [assetSummary]] =
+      await Promise.all([
+        db
+          .select({
+            targetAmount: goals.targetAmount,
+            initialAmount: goals.initialAmount,
+          })
+          .from(goals)
+          .where(and(eq(goals.userId, userId), eq(goals.isActive, true)))
+          .limit(1),
+        db
+          .select({
+            totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'INCOME' THEN ${transactions.amount} ELSE 0 END), 0)`,
+            totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'EXPENSE' THEN ${transactions.amount} ELSE 0 END), 0)`,
+            monthlyIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'INCOME' AND ${transactions.date} >= ${monthStart} THEN ${transactions.amount} ELSE 0 END), 0)`,
+            monthlyExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'EXPENSE' AND ${transactions.date} >= ${monthStart} THEN ${transactions.amount} ELSE 0 END), 0)`,
+            monthlySaving: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'SAVING' AND ${transactions.date} >= ${monthStart} THEN ${transactions.amount} ELSE 0 END), 0)`,
+          })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.userId, userId),
+              lte(transactions.date, today),
+            ),
+          ),
+        db
+          .select({
+            totalAssets: sql<string>`COALESCE(SUM(${assets.balance}), 0)`,
+          })
+          .from(assets)
+          .where(and(eq(assets.userId, userId), eq(assets.isActive, true))),
+      ]);
 
     const data: DashboardData = {
       goal: activeGoal
@@ -89,14 +80,14 @@ export async function getDashboardData() {
           }
         : { targetAmount: 0, initialAmount: 0 },
       totalSummary: {
-        totalIncome: Number(totalSummary?.totalIncome ?? 0),
-        totalExpense: Number(totalSummary?.totalExpense ?? 0),
+        totalIncome: Number(transactionSummary?.totalIncome ?? 0),
+        totalExpense: Number(transactionSummary?.totalExpense ?? 0),
         totalAssets: Number(assetSummary?.totalAssets ?? 0),
       },
       monthlySummary: {
-        income: Number(monthlySummary?.income ?? 0),
-        expense: Number(monthlySummary?.expense ?? 0),
-        saving: Number(monthlySummary?.saving ?? 0),
+        income: Number(transactionSummary?.monthlyIncome ?? 0),
+        expense: Number(transactionSummary?.monthlyExpense ?? 0),
+        saving: Number(transactionSummary?.monthlySaving ?? 0),
       },
     };
 
