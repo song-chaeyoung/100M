@@ -49,6 +49,16 @@ export const assetMinimalSchema = z.object({
   color: z.string().nullable(),
 });
 
+export const assetFormSchema = z.object({
+  name: z.string().min(1, "자산 이름을 입력하세요"),
+  type: z.enum(assetTypeSchema.options, { message: "자산 유형을 선택하세요" }),
+  balance: z.string(),
+  institution: z.string().optional(),
+  accountNumber: z.string().optional(),
+  interestRate: z.string().optional(),
+});
+
 export type AssetInput = z.infer<typeof assetSchema>;
+export type AssetFormValues = z.infer<typeof assetFormSchema>;
 export type Asset = z.infer<typeof assetResponseSchema>;
 export type AssetMinimal = z.infer<typeof assetMinimalSchema>;

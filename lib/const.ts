@@ -17,3 +17,13 @@ export const ASSET_TYPE_ICONS: Record<string, string> = {
   REAL_ESTATE: "🏠",
   OTHER: "💼",
 };
+
+export const ASSET_TYPE_OPTIONS = [
+  { value: "SAVINGS", label: "예금", icon: "🏦" },
+  { value: "DEPOSIT", label: "적금", icon: "💰" },
+  { value: "STOCK", label: "주식", icon: "📈" },
+  { value: "FUND", label: "펀드", icon: "📊" },
+  { value: "CRYPTO", label: "암호화폐", icon: "🪙" },
+  { value: "REAL_ESTATE", label: "부동산", icon: "🏠" },
+  { value: "OTHER", label: "기타", icon: "💼" },
+];

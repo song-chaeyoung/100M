@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,31 +10,12 @@ import { Label } from "@/components/ui/label";
 import { cn, formatAmount } from "@/lib/utils";
 import { createAsset, updateAsset } from "@/app/actions/assets";
 import { toast } from "sonner";
-import { Asset } from "@/lib/validations/asset";
-
-const assetFormSchema = z.object({
-  name: z.string().min(1, "자산 이름을 입력하세요"),
-  type: z.enum(
-    ["SAVINGS", "DEPOSIT", "STOCK", "FUND", "CRYPTO", "REAL_ESTATE", "OTHER"],
-    { message: "자산 유형을 선택하세요" },
-  ),
-  balance: z.string(),
-  institution: z.string().optional(),
-  accountNumber: z.string().optional(),
-  interestRate: z.string().optional(),
-});
-
-type AssetFormValues = z.infer<typeof assetFormSchema>;
-
-const ASSET_TYPE_OPTIONS = [
-  { value: "SAVINGS", label: "예금", icon: "🏦" },
-  { value: "DEPOSIT", label: "적금", icon: "💰" },
-  { value: "STOCK", label: "주식", icon: "📈" },
-  { value: "FUND", label: "펀드", icon: "📊" },
-  { value: "CRYPTO", label: "암호화폐", icon: "🪙" },
-  { value: "REAL_ESTATE", label: "부동산", icon: "🏠" },
-  { value: "OTHER", label: "기타", icon: "💼" },
-];
+import {
+  Asset,
+  assetFormSchema,
+  AssetFormValues,
+} from "@/lib/validations/asset";
+import { ASSET_TYPE_OPTIONS } from "@/lib/const";
 
 interface AssetFormSheetProps {
   open: boolean;
@@ -62,10 +42,13 @@ export function AssetFormSheet({
     },
   });
 
+  const { control, handleSubmit, formState, reset } = form;
+  const { isDirty, isSubmitting } = formState;
+
   useEffect(() => {
     if (open) {
       if (editingAsset) {
-        form.reset({
+        reset({
           name: editingAsset.name,
           type: editingAsset.type as AssetFormValues["type"],
           balance: formatAmount(Number(editingAsset.balance).toFixed(0)),
@@ -74,7 +57,7 @@ export function AssetFormSheet({
           interestRate: editingAsset.interestRate || "",
         });
       } else {
-        form.reset({
+        reset({
           name: "",
           type: "SAVINGS",
           balance: "0",
@@ -84,10 +67,7 @@ export function AssetFormSheet({
         });
       }
     }
-  }, [open, editingAsset, form]);
-
-  const { control, handleSubmit, formState } = form;
-  const { isDirty, isSubmitting } = formState;
+  }, [open, editingAsset, reset]);
 
   const onSubmit = async (data: AssetFormValues) => {
     try {
