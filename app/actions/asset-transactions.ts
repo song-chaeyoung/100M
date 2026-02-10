@@ -138,7 +138,6 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
       result = inserted;
     }
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -392,7 +391,6 @@ export async function updateAssetTransaction(
     );
     const updated = results[returningIndex][0];
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: updated };
@@ -470,7 +468,6 @@ export async function deleteAssetTransaction(id: number) {
       await db.batch([reverseQuery, deleteQuery]);
     }
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true };

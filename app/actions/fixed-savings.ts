@@ -118,8 +118,6 @@ export async function createFixedSaving(data: FixedSavingInput) {
       }
     }
 
-    revalidatePath("/automation");
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: fixedSaving };
@@ -383,8 +381,6 @@ export async function updateFixedSaving(
       }
     }
 
-    revalidatePath("/automation");
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: updated };
@@ -441,7 +437,6 @@ export async function deleteFixedSaving(id: number) {
     // 2. 고정 저축 삭제
     await db.delete(fixedSavings).where(eq(fixedSavings.id, id));
 
-    revalidatePath("/automation");
     revalidatePath("/");
 
     return { success: true };
@@ -571,8 +566,6 @@ export async function toggleFixedSavingActive(id: number) {
       .where(eq(fixedSavings.id, id))
       .returning();
 
-    revalidatePath("/automation");
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };

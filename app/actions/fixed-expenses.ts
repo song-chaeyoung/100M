@@ -70,7 +70,6 @@ export async function createFixedExpense(data: FixedExpenseInput) {
 
     const result = fixedExpense;
 
-    revalidatePath("/automation");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -292,7 +291,6 @@ export async function updateFixedExpense(
 
     const result = updated;
 
-    revalidatePath("/automation");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -338,7 +336,6 @@ export async function deleteFixedExpense(id: number) {
     // 2. 고정 지출 삭제
     await db.delete(fixedExpenses).where(eq(fixedExpenses.id, id));
 
-    revalidatePath("/automation");
     revalidatePath("/");
 
     return { success: true };
@@ -425,7 +422,6 @@ export async function toggleFixedExpenseActive(id: number) {
       .where(eq(fixedExpenses.id, id))
       .returning();
 
-    revalidatePath("/automation");
     revalidatePath("/");
 
     return { success: true, data: result };

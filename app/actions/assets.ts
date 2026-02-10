@@ -42,7 +42,6 @@ export async function createAsset(data: AssetInput) {
       })
       .returning();
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -191,7 +190,6 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       .where(eq(assets.id, id))
       .returning();
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };
@@ -225,7 +223,6 @@ export async function deleteAsset(id: number) {
     // cascade 삭제로 관련 assetTransactions, fixedSavings도 삭제됨
     await db.delete(assets).where(eq(assets.id, id));
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true };
@@ -264,7 +261,6 @@ export async function toggleAssetActive(id: number) {
       .where(eq(assets.id, id))
       .returning();
 
-    revalidatePath("/assets");
     revalidatePath("/");
 
     return { success: true, data: result };

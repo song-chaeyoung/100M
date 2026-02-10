@@ -82,7 +82,6 @@ export async function updateTargetAmount(
     }
 
     revalidatePath("/");
-    revalidatePath("/more");
 
     return { success: true };
   } catch (error) {
@@ -124,7 +123,6 @@ export async function updateInitialAmount(
     }
 
     revalidatePath("/");
-    revalidatePath("/more");
 
     return { success: true };
   } catch (error) {
