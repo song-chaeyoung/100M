@@ -66,6 +66,15 @@ export function TransactionFormSheet({
     },
   });
 
+  const { control, handleSubmit, watch, formState, reset } = form;
+  const { isDirty, isSubmitting } = formState;
+
+  // 현재 거래 타입 감시 (카테고리 목록 변경용)
+  const transactionType = watch("type");
+  const categoryId = watch("categoryId");
+  const method = watch("method");
+  const amount = watch("amount");
+
   // 삭제 확인 다이얼로그
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -73,7 +82,7 @@ export function TransactionFormSheet({
   useEffect(() => {
     if (open) {
       if (initialData) {
-        form.reset({
+        reset({
           type: initialData.type,
           amount: formatAmount(Number(initialData.amount).toFixed(0)),
           method: initialData.method ?? undefined,
@@ -82,7 +91,7 @@ export function TransactionFormSheet({
           date: initialData.date,
         });
       } else {
-        form.reset({
+        reset({
           type: "EXPENSE",
           amount: "",
           method: "CARD",
@@ -92,16 +101,7 @@ export function TransactionFormSheet({
         });
       }
     }
-  }, [open, initialData, selectedDate, form]);
-
-  const { control, handleSubmit, watch, formState } = form;
-  const { isDirty, isSubmitting } = formState;
-
-  // 현재 거래 타입 감시 (카테고리 목록 변경용)
-  const transactionType = watch("type");
-  const categoryId = watch("categoryId");
-  const method = watch("method");
-  const amount = watch("amount");
+  }, [open, initialData, selectedDate, reset]);
 
   // 타입별 필수값 검증
   const isRequiredFieldsFilled = (() => {
