@@ -14,16 +14,11 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
 import {
   assetTransactionSchema,
+  assetTransactionUpdateSchema,
   type AssetTransactionInput,
 } from "@/lib/validations/asset-transaction";
 import { z } from "zod";
-
-/**
- * 거래 타입에 따른 잔액 연산 방향 결정
- */
-function getBalanceOperation(type: AssetTransactionType): "add" | "subtract" {
-  return type === "DEPOSIT" || type === "PROFIT" ? "add" : "subtract";
-}
+import { getBalanceOperation } from "@/lib/utils/asset-transaction";
 
 /**
  * 자산 잔액 업데이트
@@ -287,7 +282,7 @@ export async function updateAssetTransaction(
       };
     }
 
-    const parsed = assetTransactionSchema.partial().safeParse(data);
+    const parsed = assetTransactionUpdateSchema.safeParse(data);
     if (!parsed.success) {
       return {
         success: false,
