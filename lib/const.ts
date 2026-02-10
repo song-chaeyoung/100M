@@ -1,3 +1,6 @@
+/** 고정지출/저축 기본 기간 (현재월 포함 N개월) */
+export const DEFAULT_PERIOD_MONTHS = 12;
+
 export const ASSET_TYPE_LABELS: Record<string, string> = {
   SAVINGS: "예금",
   DEPOSIT: "적금",

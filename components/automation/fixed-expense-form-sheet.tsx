@@ -25,11 +25,13 @@ import {
 } from "@/app/actions/fixed-expenses";
 import { toast } from "sonner";
 import dayjs from "dayjs";
+import { DEFAULT_PERIOD_MONTHS } from "@/lib/const";
 
-// 기본 기간 (현재 월 ~ 12개월 후)
 const getDefaultDates = () => ({
   startDate: dayjs().format("YYYY-MM"),
-  endDate: dayjs().add(11, "month").format("YYYY-MM"),
+  endDate: dayjs()
+    .add(DEFAULT_PERIOD_MONTHS - 1, "month")
+    .format("YYYY-MM"),
 });
 
 interface FixedExpenseFormSheetProps {

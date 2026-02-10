@@ -3,6 +3,15 @@
 import { useLayoutEffect, useState } from "react";
 import Image from "next/image";
 
+/** 브라우저가 초기 opacity:0 을 인식할 최소 지연(ms) */
+const ANIMATION_START_DELAY = 50;
+/** 스플래시 콘텐츠 표시 시간(ms) */
+const SPLASH_DISPLAY_DURATION = 2500;
+/** 페이드아웃 트랜지션 시간(ms) — CSS duration-500 과 동기화 */
+const FADE_OUT_DURATION = 500;
+/** 컴포넌트 완전 제거 시점(ms) */
+const SPLASH_REMOVE_DELAY = SPLASH_DISPLAY_DURATION + FADE_OUT_DURATION;
+
 export function SplashScreen() {
   // 1. 전체 컨테이너 가시성: true로 시작해서 홈 화면을 가림 (나중에 false로 변하며 퇴장)
   const [isVisible, setIsVisible] = useState(true);
@@ -20,22 +29,21 @@ export function SplashScreen() {
     }
 
     // 단계 1: 아주 짧은 딜레이 후 내부 콘텐츠 페이드 인 시작
-    // (브라우저가 초기 상태(opacity 0)를 인식할 시간을 주기 위함. 50ms면 충분)
     const startAnimationTimer = setTimeout(() => {
       setAnimateIn(true);
-    }, 50);
+    }, ANIMATION_START_DELAY);
 
-    // 단계 2: 2.5초 후 전체 페이드 아웃 시작 (퇴장)
+    // 단계 2: 표시 시간 후 전체 페이드 아웃 시작 (퇴장)
     const fadeOutTimer = setTimeout(() => {
-      setIsVisible(false); // 컨테이너 투명하게
-      setAnimateIn(false); // 내용물도 같이 투명하게 (자연스러운 퇴장을 위해)
-    }, 2500);
+      setIsVisible(false);
+      setAnimateIn(false);
+    }, SPLASH_DISPLAY_DURATION);
 
-    // 단계 3: 페이드 아웃 애니메이션(0.5초) 완료 후 컴포넌트 제거
+    // 단계 3: 페이드 아웃 완료 후 컴포넌트 제거
     const removeTimer = setTimeout(() => {
       setShouldRender(false);
       sessionStorage.setItem("splash-shown", "true");
-    }, 3000); // 2500ms + 500ms(transition duration)
+    }, SPLASH_REMOVE_DELAY);
 
     document.body.style.overflow = "hidden";
 
