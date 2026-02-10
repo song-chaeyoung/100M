@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { FileText } from "lucide-react";
 import { AssetTransactionItem } from "./asset-transaction-item";
 import dayjs from "dayjs";
@@ -62,7 +63,10 @@ export function AssetTransactionList({
     );
   }
 
-  const groupedTransactions = groupTransactionsByDate(transactions);
+  const groupedTransactions = useMemo(
+    () => groupTransactionsByDate(transactions),
+    [transactions],
+  );
 
   return (
     <div className="space-y-6">

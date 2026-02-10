@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,18 @@ interface AssetListClientProps {
 export function AssetListClient({ assets }: AssetListClientProps) {
   const [formSheetOpen, setFormSheetOpen] = useState(false);
 
-  const totalBalance = assets
-    .filter((a) => a.isActive)
-    .reduce((sum, a) => sum + Number(a.balance), 0);
-
-  const activeAssets = assets.filter((a) => a.isActive);
-  const inactiveAssets = assets.filter((a) => !a.isActive);
+  const activeAssets = useMemo(
+    () => assets.filter((a) => a.isActive),
+    [assets],
+  );
+  const inactiveAssets = useMemo(
+    () => assets.filter((a) => !a.isActive),
+    [assets],
+  );
+  const totalBalance = useMemo(
+    () => activeAssets.reduce((sum, a) => sum + Number(a.balance), 0),
+    [activeAssets],
+  );
 
   if (assets.length === 0) {
     return (
