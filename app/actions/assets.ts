@@ -158,26 +158,32 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       };
     }
 
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof assets.$inferInsert> = {
       updatedAt: new Date(),
+      ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+      ...(parsed.data.type !== undefined && { type: parsed.data.type }),
+      ...(parsed.data.balance !== undefined && {
+        balance: parsed.data.balance.toString(),
+      }),
+      ...(parsed.data.institution !== undefined && {
+        institution: parsed.data.institution || null,
+      }),
+      ...(parsed.data.accountNumber !== undefined && {
+        accountNumber: parsed.data.accountNumber || null,
+      }),
+      ...(parsed.data.interestRate !== undefined && {
+        interestRate: parsed.data.interestRate?.toString() || null,
+      }),
+      ...(parsed.data.icon !== undefined && {
+        icon: parsed.data.icon || null,
+      }),
+      ...(parsed.data.color !== undefined && {
+        color: parsed.data.color || null,
+      }),
+      ...(parsed.data.isActive !== undefined && {
+        isActive: parsed.data.isActive,
+      }),
     };
-
-    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
-    if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
-    if (parsed.data.balance !== undefined)
-      updateData.balance = parsed.data.balance.toString();
-    if (parsed.data.institution !== undefined)
-      updateData.institution = parsed.data.institution || null;
-    if (parsed.data.accountNumber !== undefined)
-      updateData.accountNumber = parsed.data.accountNumber || null;
-    if (parsed.data.interestRate !== undefined)
-      updateData.interestRate = parsed.data.interestRate?.toString() || null;
-    if (parsed.data.icon !== undefined)
-      updateData.icon = parsed.data.icon || null;
-    if (parsed.data.color !== undefined)
-      updateData.color = parsed.data.color || null;
-    if (parsed.data.isActive !== undefined)
-      updateData.isActive = parsed.data.isActive;
 
     const [result] = await db
       .update(assets)

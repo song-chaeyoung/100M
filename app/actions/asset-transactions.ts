@@ -297,20 +297,23 @@ export async function updateAssetTransaction(
     }
 
     // 거래 정보 업데이트 데이터 준비
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof assetTransactions.$inferInsert> = {
       updatedAt: new Date(),
+      ...(parsed.data.assetId !== undefined && {
+        assetId: parsed.data.assetId,
+      }),
+      ...(parsed.data.type !== undefined && { type: parsed.data.type }),
+      ...(parsed.data.amount !== undefined && {
+        amount: parsed.data.amount.toString(),
+      }),
+      ...(parsed.data.date !== undefined && { date: parsed.data.date }),
+      ...(parsed.data.memo !== undefined && {
+        memo: parsed.data.memo || null,
+      }),
+      ...(parsed.data.toAssetId !== undefined && {
+        toAssetId: parsed.data.toAssetId || null,
+      }),
     };
-
-    if (parsed.data.assetId !== undefined)
-      updateData.assetId = parsed.data.assetId;
-    if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
-    if (parsed.data.amount !== undefined)
-      updateData.amount = parsed.data.amount.toString();
-    if (parsed.data.date !== undefined) updateData.date = parsed.data.date;
-    if (parsed.data.memo !== undefined)
-      updateData.memo = parsed.data.memo || null;
-    if (parsed.data.toAssetId !== undefined)
-      updateData.toAssetId = parsed.data.toAssetId || null;
 
     const newAssetId = parsed.data.assetId ?? existing[0].assetId;
     const newType = parsed.data.type ?? existing[0].type;

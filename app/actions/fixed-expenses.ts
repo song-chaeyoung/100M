@@ -222,24 +222,29 @@ export async function updateFixedExpense(
       );
 
     // 2. 고정 지출 업데이트
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof fixedExpenses.$inferInsert> = {
       updatedAt: new Date(),
+      ...(parsed.data.title !== undefined && { title: parsed.data.title }),
+      ...(parsed.data.amount !== undefined && {
+        amount: parsed.data.amount.toString(),
+      }),
+      ...(parsed.data.scheduledDay !== undefined && {
+        scheduledDay: parsed.data.scheduledDay,
+      }),
+      ...(parsed.data.type !== undefined && { type: parsed.data.type }),
+      ...(parsed.data.categoryId !== undefined && {
+        categoryId: parsed.data.categoryId,
+      }),
+      ...(parsed.data.method !== undefined && {
+        method: parsed.data.method,
+      }),
+      ...(parsed.data.startDate !== undefined && {
+        startDate: `${parsed.data.startDate}-01`,
+      }),
+      ...(parsed.data.endDate !== undefined && {
+        endDate: `${parsed.data.endDate}-01`,
+      }),
     };
-
-    if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
-    if (parsed.data.amount !== undefined)
-      updateData.amount = parsed.data.amount.toString();
-    if (parsed.data.scheduledDay !== undefined)
-      updateData.scheduledDay = parsed.data.scheduledDay;
-    if (parsed.data.type !== undefined) updateData.type = parsed.data.type;
-    if (parsed.data.categoryId !== undefined)
-      updateData.categoryId = parsed.data.categoryId;
-    if (parsed.data.method !== undefined)
-      updateData.method = parsed.data.method;
-    if (parsed.data.startDate !== undefined)
-      updateData.startDate = `${parsed.data.startDate}-01`;
-    if (parsed.data.endDate !== undefined)
-      updateData.endDate = `${parsed.data.endDate}-01`;
 
     const [updated] = await db
       .update(fixedExpenses)
