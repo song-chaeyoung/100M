@@ -21,7 +21,7 @@ import { z } from "zod";
 /**
  * 거래 타입에 따른 잔액 연산 방향 결정
  */
-function getBalanceOperation(type: AssetTransactionType): "add" | "subtract" {
+export function getBalanceOperation(type: AssetTransactionType): "add" | "subtract" {
   return type === "DEPOSIT" || type === "PROFIT" ? "add" : "subtract";
 }
 
