@@ -74,8 +74,8 @@ vi.mock("drizzle-orm", () => ({
 
 import { auth } from "@/auth";
 import { db } from "@/db";
+import { getBalanceOperation } from "@/lib/utils/asset-transaction";
 import {
-  getBalanceOperation,
   createAssetTransaction,
   updateAssetTransaction,
   deleteAssetTransaction,
