@@ -22,27 +22,26 @@ export function FixedExpenseList({
   onEdit,
   onDelete,
 }: FixedExpenseListProps) {
-  const totalAmount = items.reduce(
-    (sum, item) => sum + Number(item.amount),
-    0
-  );
+  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount), 0);
 
   return (
     <Accordion type="multiple" defaultValue={["expense"]}>
       <AccordionItem value="expense">
-        <AccordionTrigger className="hover:no-underline">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-full bg-red-50">
-              <CreditCard className="h-4 w-4 text-red-600" />
+        <AccordionTrigger className="hover:no-underline flex items-center">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2 leading-none">
+              <div className="p-1.5 rounded-full bg-red-50">
+                <CreditCard className="h-4 w-4 text-red-600" />
+              </div>
+              <span>고정 지출</span>
+              <span className="text-muted-foreground text-xs">
+                ({items.length}건)
+              </span>
             </div>
-            <span>고정 지출</span>
-            <span className="text-muted-foreground text-xs">
-              ({items.length}건)
+            <span className="text-red-600 font-semibold leading-none">
+              {formatCurrency(-totalAmount, true)}
             </span>
           </div>
-          <span className="text-red-600 font-semibold mr-2">
-            {formatCurrency(-totalAmount, true)}
-          </span>
         </AccordionTrigger>
         <AccordionContent>
           {items.length > 0 ? (
