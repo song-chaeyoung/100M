@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "로그인",
@@ -12,7 +13,7 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col justify-center">
         {/* 헤더 */}
         <div className="mb-8 text-center">
-          <img
+          <Image
             src="/logo.PNG"
             alt="logo"
             className="w-20 h-20 mx-auto"
