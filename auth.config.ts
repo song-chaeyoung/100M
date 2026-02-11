@@ -19,15 +19,13 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnHome = nextUrl.pathname === "/";
+      const isOnLoginPage = nextUrl.pathname === "/login";
 
-      if (isOnHome) {
-        if (isLoggedIn) return true;
-        return false; // 로그인 페이지로 리다이렉트
-      } else if (isLoggedIn && nextUrl.pathname === "/login") {
-        return Response.redirect(new URL("/", nextUrl));
+      if (isOnLoginPage) {
+        if (isLoggedIn) return Response.redirect(new URL("/", nextUrl));
+        return true;
       }
-      return true;
+      return isLoggedIn;
     },
   },
 } satisfies NextAuthConfig;
