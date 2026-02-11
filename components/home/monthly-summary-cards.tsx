@@ -50,8 +50,10 @@ export function MonthlySummaryCards({
               <div className={`p-2 rounded-full ${item.bgColor}`}>
                 <item.icon className={`h-5 w-5 ${item.color}`} />
               </div>
-              <span className="text-xs text-muted-foreground">{item.label}</span>
-              <span className={`text-sm font-semibold ${item.color}`}>
+              <span className="text-xs text-muted-foreground">
+                {item.label}
+              </span>
+              <span className={`text-sm font-semibold truncate ${item.color}`}>
                 {formatCurrency(item.amount, item.showSign)}
               </span>
             </CardContent>

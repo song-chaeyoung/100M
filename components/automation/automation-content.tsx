@@ -109,7 +109,7 @@ export function AutomationContent({
 
       <Button
         onClick={() => setModal({ type: "selectType" })}
-        className="w-full"
+        className="w-full mb-6"
         size="lg"
       >
         <Plus className="h-4 w-4 mr-2" />

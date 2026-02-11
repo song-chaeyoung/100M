@@ -1,5 +1,11 @@
 import { Target } from "lucide-react";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -53,13 +59,42 @@ export function GoalProgressCard({
           </span>
         </div>
 
-        <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-          <p>
-            초기 {formatCurrency(initialAmount)} + 수입{" "}
-            {formatCurrency(totalIncome)} - 지출 {formatCurrency(totalExpense)}{" "}
-            + 자산 {formatCurrency(totalAssets)}
-          </p>
-        </div>
+        <Accordion type="single" collapsible>
+          <AccordionItem
+            value="detail"
+            className="border-none bg-muted/50 rounded-lg"
+          >
+            <AccordionTrigger className="px-3 py-2 text-sm text-muted-foreground hover:no-underline">
+              산출 내역
+            </AccordionTrigger>
+            <AccordionContent className="px-3">
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>초기자금</span>
+                  <span>{formatCurrency(initialAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>수입</span>
+                  <span className="text-green-600">
+                    + {formatCurrency(totalIncome)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>지출</span>
+                  <span className="text-red-500">
+                    - {formatCurrency(totalExpense)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>자산</span>
+                  <span className="text-green-600">
+                    + {formatCurrency(totalAssets)}
+                  </span>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </CardContent>
     </Card>
   );

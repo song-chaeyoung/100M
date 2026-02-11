@@ -59,7 +59,7 @@ export function AssetListClient({ assets }: AssetListClientProps) {
       </div>
 
       {/* 활성 자산 목록 */}
-      <div className="space-y-3">
+      <div className="flex flex-col space-y-3">
         <h2 className="text-lg font-semibold">자산 목록</h2>
         {activeAssets.map((asset) => (
           <AssetCard key={asset.id} asset={asset} />
@@ -68,7 +68,7 @@ export function AssetListClient({ assets }: AssetListClientProps) {
 
       {/* 비활성 자산 목록 */}
       {inactiveAssets.length > 0 && (
-        <div className="space-y-3">
+        <div className="flex flex-col space-y-3">
           <h2 className="text-lg font-semibold text-muted-foreground">
             비활성 자산
           </h2>
