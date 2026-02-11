@@ -126,7 +126,7 @@ export function AssetTransactionFormSheet({
       const submitData = {
         assetId,
         type: data.type,
-        amount: parseFloat(data.amount.replace(/,/g, "")),
+        amount: Number(data.amount.replace(/,/g, "")) || 0,
         date: dayjs(data.date).format("YYYY-MM-DD"),
         memo: data.memo || "",
         toAssetId: data.type === "TRANSFER" ? data.toAssetId : undefined,

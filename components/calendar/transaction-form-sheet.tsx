@@ -136,7 +136,7 @@ export function TransactionFormSheet({
     try {
       const submitData = {
         type: data.type,
-        amount: parseFloat(data.amount.replace(/,/g, "")),
+        amount: Number(data.amount.replace(/,/g, "")) || 0,
         method: data.method,
         date: dayjs(data.date).format("YYYY-MM-DD"),
         categoryId: data.categoryId,

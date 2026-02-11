@@ -74,11 +74,11 @@ export function AssetFormSheet({
       const submitData = {
         name: data.name,
         type: data.type,
-        balance: parseFloat(data.balance.replace(/,/g, "") || "0"),
+        balance: Number(data.balance.replace(/,/g, "")) || 0,
         institution: data.institution || undefined,
         accountNumber: data.accountNumber || undefined,
         interestRate: data.interestRate
-          ? parseFloat(data.interestRate)
+          ? Number(data.interestRate) || 0
           : undefined,
         isActive: true,
       };
