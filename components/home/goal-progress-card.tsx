@@ -32,7 +32,10 @@ export function GoalProgressCard({
 }: GoalProgressCardProps) {
   // 순자산 = 초기자금 + 수입 - 지출 + 자산
   const netWorth = initialAmount + totalIncome - totalExpense + totalAssets;
-  const progressPercent = Math.min((netWorth / targetAmount) * 100, 100);
+  const progressPercent =
+    targetAmount > 0
+      ? Math.max(0, Math.min((netWorth / targetAmount) * 100, 100))
+      : 0;
 
   return (
     <Card>
