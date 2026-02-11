@@ -17,26 +17,6 @@ import { z } from "zod";
 import { getBalanceOperation } from "@/lib/utils/asset-transaction";
 
 /**
- * 자산 잔액 업데이트
- */
-export async function updateAssetBalance(
-  assetId: number,
-  amount: string,
-  operation: "add" | "subtract",
-) {
-  await db
-    .update(assets)
-    .set({
-      balance:
-        operation === "add"
-          ? sql`${assets.balance} + ${amount}`
-          : sql`${assets.balance} - ${amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(assets.id, assetId));
-}
-
-/**
  * 자산 거래 생성
  */
 export async function createAssetTransaction(data: AssetTransactionInput) {
