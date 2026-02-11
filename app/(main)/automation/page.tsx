@@ -6,6 +6,7 @@ import { getFixedSavings } from "@/app/actions/fixed-savings";
 import { getAssets } from "@/app/actions/assets";
 import { getCategories } from "@/app/actions/categories";
 import { handleApiResults } from "@/lib/utils/api-handler";
+import { ErrorToast } from "@/components/error-toast";
 import type { FixedExpense, FixedSaving } from "@/lib/types/automation";
 import type { Category } from "@/db/schema";
 import type { Asset } from "@/lib/validations/asset";
@@ -39,6 +40,7 @@ export default async function AutomationPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <ErrorToast errors={errors} />
       <PageHeader />
       <AutomationContent
         fixedExpenses={fixedExpenses}

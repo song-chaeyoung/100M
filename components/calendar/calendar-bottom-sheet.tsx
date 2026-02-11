@@ -50,6 +50,7 @@ export function CalendarBottomSheet({
             setTransactions([]);
           }
         } catch (error) {
+          console.error(error);
           toast.error("거래 내역 조회에 실패했습니다.");
           setTransactions([]);
         } finally {
@@ -91,6 +92,7 @@ export function CalendarBottomSheet({
             setTransactions([]);
           }
         } catch (error) {
+          console.error(error);
           toast.error("거래 내역 조회에 실패했습니다.");
           setTransactions([]);
         } finally {

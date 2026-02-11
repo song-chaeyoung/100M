@@ -4,6 +4,7 @@ import { GoalProgressCard } from "@/components/home/goal-progress-card";
 import { MonthlySummaryCards } from "@/components/home/monthly-summary-cards";
 import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
 import { handleApiResults } from "@/lib/utils/api-handler";
+import { ErrorToast } from "@/components/error-toast";
 
 export const metadata: Metadata = {
   title: "홈",
@@ -25,6 +26,7 @@ export default async function HomePage() {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <PageHeader />
+        <ErrorToast errors={errors} />
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
           <h2 className="text-lg font-semibold text-destructive mb-2">
             데이터를 불러올 수 없습니다
@@ -40,6 +42,7 @@ export default async function HomePage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <ErrorToast errors={errors} />
       <PageHeader />
 
       <GoalProgressCard

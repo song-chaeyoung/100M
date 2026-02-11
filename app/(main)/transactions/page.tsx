@@ -4,6 +4,7 @@ import { Calendar } from "@/components/calendar/calendar";
 import { getTransactionsByMonth } from "@/app/actions/transactions";
 import { getCategories } from "@/app/actions/categories";
 import { handleApiResults } from "@/lib/utils/api-handler";
+import { ErrorToast } from "@/components/error-toast";
 import type { TransactionSummary } from "@/lib/api/types";
 import type { Category } from "@/db/schema";
 import dayjs from "dayjs";
@@ -44,6 +45,7 @@ export default async function TransactionsPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <ErrorToast errors={errors} />
       <PageHeader />
       <Calendar
         initialTransactions={initialTransactions}

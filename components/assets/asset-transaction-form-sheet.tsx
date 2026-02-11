@@ -155,6 +155,7 @@ export function AssetTransactionFormSheet({
         );
       }
     } catch (error) {
+      console.error("Error creating asset transaction:", error);
       toast.error("오류가 발생했습니다.");
     }
   };

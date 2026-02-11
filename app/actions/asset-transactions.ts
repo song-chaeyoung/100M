@@ -2,11 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import {
-  assetTransactions,
-  assets,
-  type AssetTransactionType,
-} from "@/db/schema";
+import { assetTransactions, assets } from "@/db/schema";
 import { eq, and, desc, lte } from "drizzle-orm";
 import dayjs from "dayjs";
 import { sql } from "drizzle-orm";
@@ -137,6 +133,7 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
 
     return { success: true, data: result };
   } catch (error) {
+    console.error("Error creating asset transaction:", error);
     return { success: false, error: "자산 거래 생성에 실패했습니다." };
   }
 }
