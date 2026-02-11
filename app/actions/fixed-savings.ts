@@ -15,7 +15,7 @@ import {
   type FixedSavingInput,
 } from "@/lib/validations/fixed-saving";
 import { z } from "zod";
-import { getMonthsBetween } from "@/lib/utils";
+import { getMonthsBetween, toScheduledDate } from "@/lib/utils";
 import dayjs from "dayjs";
 
 /**
@@ -69,9 +69,8 @@ export async function createFixedSaving(data: FixedSavingInput) {
     const today = dayjs().format("YYYY-MM-DD");
     const amount = parsed.data.amount.toString();
 
-    const dates = months.map(
-      (month) =>
-        `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`,
+    const dates = months.map((month) =>
+      toScheduledDate(month, parsed.data.scheduledDay),
     );
 
     if (dates.length > 0) {
@@ -326,13 +325,12 @@ export async function updateFixedSaving(
 
         // 오늘 이후 날짜의 월만 필터링
         const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          const date = toScheduledDate(month, scheduledDay);
           return date >= today;
         });
 
-        const dates = months.map(
-          (month) =>
-            `${month}-${String(scheduledDay).padStart(2, "0")}`,
+        const dates = months.map((month) =>
+          toScheduledDate(month, scheduledDay),
         );
 
         if (dates.length > 0) {
@@ -502,13 +500,12 @@ export async function toggleFixedSavingActive(id: number) {
 
         // 오늘 이후 날짜의 월만 필터링
         const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          const date = toScheduledDate(month, scheduledDay);
           return date >= today;
         });
 
-        const dates = months.map(
-          (month) =>
-            `${month}-${String(scheduledDay).padStart(2, "0")}`,
+        const dates = months.map((month) =>
+          toScheduledDate(month, scheduledDay),
         );
 
         if (dates.length > 0) {

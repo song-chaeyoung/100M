@@ -112,6 +112,7 @@ export function FixedExpenseFormSheet({
   const categoryId = watch("categoryId");
   const method = watch("method");
   const title = watch("title");
+  const scheduledDay = watch("scheduledDay");
 
   const isRequiredFieldsFilled =
     !!title && amount > 0 && !!categoryId && !!method;
@@ -237,7 +238,12 @@ export function FixedExpenseFormSheet({
                   value={field.value || ""}
                   onChange={(e) => {
                     const value = e.target.value;
-                    field.onChange(value === "" ? "" : Number(value));
+                    if (value === "") {
+                      field.onChange("");
+                      return;
+                    }
+                    const num = Number(value);
+                    field.onChange(Math.min(31, Math.max(1, num)));
                   }}
                   className="w-20 text-center"
                 />
@@ -245,6 +251,11 @@ export function FixedExpenseFormSheet({
               </div>
             )}
           />
+          {scheduledDay >= 29 && (
+            <p className="text-xs text-muted-foreground">
+              해당 일이 없는 달은 말일에 자동 적용됩니다
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">

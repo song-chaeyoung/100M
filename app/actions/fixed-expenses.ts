@@ -10,7 +10,7 @@ import {
   type FixedExpenseInput,
 } from "@/lib/validations/fixed-expense";
 import { z } from "zod";
-import { getMonthsBetween } from "@/lib/utils";
+import { getMonthsBetween, toScheduledDate } from "@/lib/utils";
 import dayjs from "dayjs";
 
 /**
@@ -56,7 +56,7 @@ export async function createFixedExpense(data: FixedExpenseInput) {
       userId,
       type: "EXPENSE" as const,
       amount: parsed.data.amount.toString(),
-      date: `${month}-${String(parsed.data.scheduledDay).padStart(2, "0")}`,
+      date: toScheduledDate(month, parsed.data.scheduledDay),
       categoryId: parsed.data.categoryId,
       method: parsed.data.method,
       memo: parsed.data.title,
@@ -267,7 +267,7 @@ export async function updateFixedExpense(
 
         // 오늘 이후 날짜의 월만 필터링
         const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          const date = toScheduledDate(month, scheduledDay);
           return date >= today;
         });
 
@@ -275,7 +275,7 @@ export async function updateFixedExpense(
           userId,
           type: "EXPENSE" as const,
           amount,
-          date: `${month}-${String(scheduledDay).padStart(2, "0")}`,
+          date: toScheduledDate(month, scheduledDay),
           categoryId,
           method,
           memo: title,
@@ -391,7 +391,7 @@ export async function toggleFixedExpenseActive(id: number) {
 
         // 오늘 이후 날짜의 월만 필터링
         const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-          const date = `${month}-${String(scheduledDay).padStart(2, "0")}`;
+          const date = toScheduledDate(month, scheduledDay);
           return date >= today;
         });
 
@@ -399,7 +399,7 @@ export async function toggleFixedExpenseActive(id: number) {
           userId,
           type: "EXPENSE" as const,
           amount: existing[0].amount,
-          date: `${month}-${String(scheduledDay).padStart(2, "0")}`,
+          date: toScheduledDate(month, scheduledDay),
           categoryId: existing[0].categoryId,
           method: existing[0].method,
           memo: existing[0].title,

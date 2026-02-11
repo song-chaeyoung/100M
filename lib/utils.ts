@@ -43,6 +43,17 @@ export const formatAmount = (value: string) => {
  * @param endMonth 종료월 (YYYY-MM 형식)
  * @returns 월 배열 (예: ["2025-01", "2025-02", ...])
  */
+/**
+ * 월(YYYY-MM)과 예정일로 유효한 날짜 문자열 생성
+ * 해당 월의 마지막 날을 초과하지 않도록 클램핑
+ * 예: ("2025-02", 31) → "2025-02-28"
+ */
+export function toScheduledDate(month: string, day: number): string {
+  const lastDay = dayjs(`${month}-01`).daysInMonth();
+  const clampedDay = Math.min(day, lastDay);
+  return `${month}-${String(clampedDay).padStart(2, "0")}`;
+}
+
 export function getMonthsBetween(startMonth: string, endMonth: string): string[] {
   const months: string[] = [];
   let current = dayjs(startMonth).startOf("month");
