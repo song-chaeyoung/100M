@@ -53,6 +53,11 @@ export function AssetTransactionList({
   onEdit,
   onDelete,
 }: AssetTransactionListProps) {
+  const groupedTransactions = useMemo(
+    () => groupTransactionsByDate(transactions),
+    [transactions],
+  );
+
   if (transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -62,11 +67,6 @@ export function AssetTransactionList({
       </div>
     );
   }
-
-  const groupedTransactions = useMemo(
-    () => groupTransactionsByDate(transactions),
-    [transactions],
-  );
 
   return (
     <div className="space-y-6">

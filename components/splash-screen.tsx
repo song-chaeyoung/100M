@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 /** 브라우저가 초기 opacity:0 을 인식할 최소 지연(ms) */
@@ -12,21 +12,23 @@ const FADE_OUT_DURATION = 500;
 /** 컴포넌트 완전 제거 시점(ms) */
 const SPLASH_REMOVE_DELAY = SPLASH_DISPLAY_DURATION + FADE_OUT_DURATION;
 
+function getInitialShouldRender() {
+  if (typeof window === "undefined") return true;
+  return !sessionStorage.getItem("splash-shown");
+}
+
 export function SplashScreen() {
   // 1. 전체 컨테이너 가시성: true로 시작해서 홈 화면을 가림 (나중에 false로 변하며 퇴장)
   const [isVisible, setIsVisible] = useState(true);
   // 2. 내부 콘텐츠 등장 애니메이션 트리거: false로 시작 (잠시 후 true로 변하며 등장)
   const [animateIn, setAnimateIn] = useState(false);
-  // 3. 컴포넌트 마운트 여부
-  const [shouldRender, setShouldRender] = useState(true);
+  // 3. 컴포넌트 마운트 여부 — 초기값에서 이미 본 스플래시면 바로 false
+  const [shouldRender, setShouldRender] = useState(getInitialShouldRender);
+  const hasInitialized = useRef(false);
 
-  useLayoutEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem("splash-shown");
-
-    if (hasSeenSplash) {
-      setShouldRender(false);
-      return;
-    }
+  useEffect(() => {
+    if (hasInitialized.current || !shouldRender) return;
+    hasInitialized.current = true;
 
     // 단계 1: 아주 짧은 딜레이 후 내부 콘텐츠 페이드 인 시작
     const startAnimationTimer = setTimeout(() => {
@@ -53,7 +55,7 @@ export function SplashScreen() {
       clearTimeout(removeTimer);
       document.body.style.overflow = "unset";
     };
-  }, []);
+  }, [shouldRender]);
 
   if (!shouldRender) return null;
 
