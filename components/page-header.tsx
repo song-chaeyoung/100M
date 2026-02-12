@@ -32,6 +32,12 @@ const pageInfo: Record<string, { title: string; description?: string }> = {
   "/more/privacy": {
     title: "개인정보 처리방침",
   },
+  "/terms": {
+    title: "서비스 약관",
+  },
+  "/privacy": {
+    title: "개인정보 처리방침",
+  },
 };
 
 interface PageHeaderProps {

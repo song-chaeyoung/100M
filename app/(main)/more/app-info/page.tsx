@@ -89,7 +89,7 @@ export default function AppInfoPage() {
 
         {/* 저작권 */}
         <section className="text-center text-xs text-muted-foreground pt-4">
-          <p>© 2024-2025 일억모으기. All rights reserved.</p>
+          <p>©2026 일억모으기. All rights reserved.</p>
         </section>
       </div>
     </div>

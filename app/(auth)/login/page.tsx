@@ -87,19 +87,19 @@ export default function LoginPage() {
       </div>
 
       {/* 하단 약관 */}
-      {/* <div className="mt-8 text-center">
+      <div className="mt-8 text-center">
         <p className="text-xs text-muted-foreground">
           로그인하면{" "}
-          <a href="#" className="underline">
+          <a href="/terms" className="underline">
             서비스 약관
           </a>{" "}
           및{" "}
-          <a href="#" className="underline">
+          <a href="/privacy" className="underline">
             개인정보 처리방침
           </a>
           에 동의하게 됩니다.
         </p>
-      </div> */}
+      </div>
     </div>
   );
 }

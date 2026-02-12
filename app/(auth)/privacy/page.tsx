@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <PageHeader backHref="/more" />
+      <PageHeader backHref="/login" />
       <PrivacyContent />
     </div>
   );
