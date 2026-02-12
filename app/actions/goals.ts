@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { goals } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { goalAmountSchema } from "@/lib/validations/goal";
 
 export interface GoalData {
   id: number;
@@ -57,6 +58,11 @@ export async function updateTargetAmount(
   targetAmount: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = goalAmountSchema.safeParse(targetAmount);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: "로그인이 필요합니다." };
@@ -98,6 +104,11 @@ export async function updateInitialAmount(
   initialAmount: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = goalAmountSchema.safeParse(initialAmount);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
     const session = await auth();
     if (!session?.user?.id) {
       return { success: false, error: "로그인이 필요합니다." };
