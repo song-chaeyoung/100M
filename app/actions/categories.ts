@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { categories, type CategoryType } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 
 export interface Category {
   id: number;
@@ -43,7 +43,6 @@ async function getCategoriesInternal(
 
 /**
  * 카테고리 목록 조회 (사용자 카테고리 + 기본 카테고리)
- * Next.js unstable_cache로 캐싱
  */
 export async function getCategories(type?: CategoryType) {
   try {
@@ -52,23 +51,18 @@ export async function getCategories(type?: CategoryType) {
       return { success: false, error: "인증이 필요합니다." };
     }
 
-    const userId = session.user.id;
-
-    const cacheKey = type ? `categories-${type}` : "categories-all";
-
-    const getCachedCategories = unstable_cache(
-      async () => getCategoriesInternal(userId, type),
-      [cacheKey, userId],
-      {
-        tags: [`user-${userId}-categories`],
-        revalidate: 10800, // 3시간 캐시
-      },
-    );
-
-    const data = await getCachedCategories();
+    const data = await getCachedCategories(session.user.id, type);
     return { success: true, data };
   } catch (error) {
     console.error("Error fetching categories:", error);
     return { success: false, error: "카테고리 조회에 실패했습니다." };
   }
+}
+
+async function getCachedCategories(userId: string, type?: CategoryType) {
+  "use cache";
+  cacheLife("weeks");
+  cacheTag(`user-${userId}-categories`);
+
+  return getCategoriesInternal(userId, type);
 }
