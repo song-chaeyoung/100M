@@ -53,7 +53,7 @@ export const metadata: Metadata = {
       {
         url: "/logo.PNG",
         width: 1200,
-        height: 630,
+        height: 1200,
         alt: "일억모으기",
       },
     ],
