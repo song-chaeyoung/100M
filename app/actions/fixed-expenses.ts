@@ -131,7 +131,7 @@ export async function getFixedExpenseById(id: number) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return null;
+      return { success: false, error: "인증이 필요합니다." };
     }
 
     const result = await db
@@ -167,7 +167,7 @@ export async function getFixedExpenseById(id: number) {
       )
       .limit(1);
 
-    return result[0] || null;
+    return { success: true, data: result[0] || null };
   } catch (error) {
     console.error("Error fetching fixed expense:", error);
     return { success: false, error: "고정 지출 조회에 실패했습니다." };
