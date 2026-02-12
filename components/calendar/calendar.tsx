@@ -13,6 +13,7 @@ import { getTransactionsByMonth } from "@/lib/api/transactions";
 import type { TransactionSummary } from "@/lib/api/types";
 import type { Category } from "@/lib/api/categories";
 import { CalendarBottomSheet } from "./calendar-bottom-sheet";
+import { CategorySummary } from "./category-summary";
 
 interface MonthSlide {
   month: string;
@@ -183,6 +184,8 @@ export function Calendar({
           </CarouselContent>
         </Carousel>
       </div>
+
+      <CategorySummary month={slides[1].month} />
 
       <CalendarBottomSheet
         open={isBottomSheetOpen}

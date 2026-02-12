@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { transactions, categories } from "@/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sum, sql } from "drizzle-orm";
 import dayjs from "dayjs";
 import type { TransactionSummary } from "@/lib/api/types";
 import { revalidatePath } from "next/cache";
@@ -64,6 +64,52 @@ export async function getTransactionsByMonth(month: string) {
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return { success: false, error: "거래 내역 조회에 실패했습니다." };
+  }
+}
+
+/**
+ * 특정 월의 카테고리별 합계 조회
+ * @param month - "YYYY-MM" 형식의 월
+ * @returns 타입별 카테고리 합계 배열
+ */
+export async function getCategorySummaryByMonth(month: string) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const startDate = dayjs(month).startOf("month").format("YYYY-MM-DD");
+    const endDate = dayjs(month).endOf("month").format("YYYY-MM-DD");
+
+    const result = await db
+      .select({
+        categoryId: transactions.categoryId,
+        categoryName: categories.name,
+        categoryIcon: categories.icon,
+        type: transactions.type,
+        total: sum(transactions.amount),
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(
+        and(
+          eq(transactions.userId, session.user.id),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate),
+        ),
+      )
+      .groupBy(
+        transactions.categoryId,
+        categories.name,
+        categories.icon,
+        transactions.type,
+      );
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error fetching category summary:", error);
+    return { success: false, error: "카테고리별 요약 조회에 실패했습니다." };
   }
 }
 
@@ -221,6 +267,61 @@ export async function updateTransaction(id: number, data: TransactionInput) {
  * @param id - 거래 ID
  * @returns 삭제 결과
  */
+/**
+ * 특정 월 + 카테고리별 거래 내역 조회
+ * @param month - "YYYY-MM" 형식의 월
+ * @param categoryId - 카테고리 ID
+ * @returns 거래 내역 배열 (카테고리 정보 포함)
+ */
+export async function getTransactionsByMonthAndCategory(
+  month: string,
+  categoryId: number,
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const startDate = dayjs(month).startOf("month").format("YYYY-MM-DD");
+    const endDate = dayjs(month).endOf("month").format("YYYY-MM-DD");
+
+    const result = await db
+      .select({
+        id: transactions.id,
+        amount: transactions.amount,
+        type: transactions.type,
+        method: transactions.method,
+        date: transactions.date,
+        memo: transactions.memo,
+        isFixed: transactions.isFixed,
+        createdAt: transactions.createdAt,
+        category: {
+          id: categories.id,
+          name: categories.name,
+          icon: categories.icon,
+          type: categories.type,
+        },
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(
+        and(
+          eq(transactions.userId, session.user.id),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate),
+          eq(transactions.categoryId, categoryId),
+        ),
+      )
+      .orderBy(transactions.date);
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error fetching transactions by month and category:", error);
+    return { success: false, error: "거래 내역 조회에 실패했습니다." };
+  }
+}
+
 export async function deleteTransaction(id: number) {
   try {
     const session = await auth();
