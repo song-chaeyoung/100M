@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { assets } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, not } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { assetSchema, type AssetInput } from "@/lib/validations/asset";
 import { z } from "zod";
@@ -255,10 +255,10 @@ export async function toggleAssetActive(id: number) {
     const [result] = await db
       .update(assets)
       .set({
-        isActive: !existing[0].isActive,
+        isActive: not(assets.isActive),
         updatedAt: new Date(),
       })
-      .where(eq(assets.id, id))
+      .where(and(eq(assets.id, id), eq(assets.userId, session.user.id)))
       .returning();
 
     revalidatePath("/");
