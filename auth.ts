@@ -36,13 +36,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sub = user.id;
       }
       if (trigger === "signUp") {
-        await db.insert(goals).values({
-          userId: user.id!,
-          startDate: new Date().toISOString().split("T")[0],
-          initialAmount: "0",
-          targetAmount: "100000000",
-          isActive: true,
-        });
+        try {
+          await db.insert(goals).values({
+            userId: user.id!,
+            startDate: new Date().toISOString().split("T")[0],
+            initialAmount: "0",
+            targetAmount: "100000000",
+            isActive: true,
+          });
+        } catch (error) {
+          console.error("Failed to create initial goal on signUp:", error);
+        }
       }
       return token;
     },
