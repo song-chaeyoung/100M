@@ -42,6 +42,7 @@ export const metadata: Metadata = {
     "일억모으기",
   ],
   authors: [{ name: "일억모으기" }],
+  metadataBase: new URL("https://100-m.vercel.app"),
   openGraph: {
     title: "일억모으기",
     description: "열심히 기록하고 일억모으자!",
