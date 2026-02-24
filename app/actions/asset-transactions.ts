@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { withAuth } from "@/lib/with-auth";
 import { db } from "@/db";
 import { assetTransactions, assets } from "@/db/schema";
 import { eq, and, desc, lte } from "drizzle-orm";
@@ -20,207 +20,196 @@ import { getBalanceOperation } from "@/lib/utils/asset-transaction";
  * 자산 거래 생성
  */
 export async function createAssetTransaction(data: AssetTransactionInput) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: "인증이 필요합니다." };
-    }
+  return withAuth(async (userId) => {
+    try {
+      const parsed = assetTransactionSchema.safeParse(data);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: z.flattenError(parsed.error).fieldErrors,
+        };
+      }
 
-    const userId = session.user.id;
-
-    const parsed = assetTransactionSchema.safeParse(data);
-    if (!parsed.success) {
-      return {
-        success: false,
-        error: z.flattenError(parsed.error).fieldErrors,
-      };
-    }
-
-    // 자산 소유권 확인
-    const asset = await db
-      .select()
-      .from(assets)
-      .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)))
-      .limit(1);
-
-    if (!asset[0]) {
-      return { success: false, error: "자산이 존재하지 않습니다." };
-    }
-
-    // TRANSFER인 경우 대상 자산 소유권도 확인
-    if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
-      const toAsset = await db
+      // 자산 소유권 확인
+      const asset = await db
         .select()
         .from(assets)
-        .where(
-          and(eq(assets.id, parsed.data.toAssetId), eq(assets.userId, userId)),
-        )
+        .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)))
         .limit(1);
 
-      if (!toAsset[0]) {
-        return { success: false, error: "이체 대상 자산이 존재하지 않습니다." };
+      if (!asset[0]) {
+        return { success: false, error: "자산이 존재하지 않습니다." };
       }
+
+      // TRANSFER인 경우 대상 자산 소유권도 확인
+      if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
+        const toAsset = await db
+          .select()
+          .from(assets)
+          .where(
+            and(eq(assets.id, parsed.data.toAssetId), eq(assets.userId, userId)),
+          )
+          .limit(1);
+
+        if (!toAsset[0]) {
+          return { success: false, error: "이체 대상 자산이 존재하지 않습니다." };
+        }
+      }
+
+      const operation = getBalanceOperation(parsed.data.type);
+      const amount = parsed.data.amount.toString();
+
+      const insertQuery = db
+        .insert(assetTransactions)
+        .values({
+          userId,
+          assetId: parsed.data.assetId,
+          type: parsed.data.type,
+          amount,
+          date: parsed.data.date,
+          memo: parsed.data.memo || null,
+          toAssetId: parsed.data.toAssetId || null,
+          isFixed: false,
+        })
+        .returning();
+
+      const fromBalanceQuery = db
+        .update(assets)
+        .set({
+          balance:
+            operation === "add"
+              ? sql`${assets.balance} + ${amount}`
+              : sql`${assets.balance} - ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(assets.id, parsed.data.assetId));
+
+      let result;
+      if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
+        const [[inserted]] = await db.batch([
+          insertQuery,
+          fromBalanceQuery,
+          db
+            .update(assets)
+            .set({
+              balance: sql`${assets.balance} + ${amount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(assets.id, parsed.data.toAssetId)),
+        ]);
+        result = inserted;
+      } else {
+        const [[inserted]] = await db.batch([insertQuery, fromBalanceQuery]);
+        result = inserted;
+      }
+
+      revalidatePath("/");
+
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error creating asset transaction:", error);
+      return { success: false, error: "자산 거래 생성에 실패했습니다." };
     }
-
-    const operation = getBalanceOperation(parsed.data.type);
-    const amount = parsed.data.amount.toString();
-
-    const insertQuery = db
-      .insert(assetTransactions)
-      .values({
-        userId,
-        assetId: parsed.data.assetId,
-        type: parsed.data.type,
-        amount,
-        date: parsed.data.date,
-        memo: parsed.data.memo || null,
-        toAssetId: parsed.data.toAssetId || null,
-        isFixed: false,
-      })
-      .returning();
-
-    const fromBalanceQuery = db
-      .update(assets)
-      .set({
-        balance:
-          operation === "add"
-            ? sql`${assets.balance} + ${amount}`
-            : sql`${assets.balance} - ${amount}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(assets.id, parsed.data.assetId));
-
-    let result;
-    if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
-      const [[inserted]] = await db.batch([
-        insertQuery,
-        fromBalanceQuery,
-        db
-          .update(assets)
-          .set({
-            balance: sql`${assets.balance} + ${amount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(assets.id, parsed.data.toAssetId)),
-      ]);
-      result = inserted;
-    } else {
-      const [[inserted]] = await db.batch([insertQuery, fromBalanceQuery]);
-      result = inserted;
-    }
-
-    revalidatePath("/");
-
-    return { success: true, data: result };
-  } catch (error) {
-    console.error("Error creating asset transaction:", error);
-    return { success: false, error: "자산 거래 생성에 실패했습니다." };
-  }
+  });
 }
 
 /**
  * 자산 거래 목록 조회
  */
 export async function getAssetTransactions(assetId?: number) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: "인증이 필요합니다." };
+  return withAuth(async (userId) => {
+    try {
+      const today = dayjs().format("YYYY-MM-DD");
+      const conditions = [
+        eq(assetTransactions.userId, userId),
+        lte(assetTransactions.date, today),
+      ];
+      if (assetId) {
+        conditions.push(eq(assetTransactions.assetId, assetId));
+      }
+
+      const result = await db
+        .select({
+          id: assetTransactions.id,
+          assetId: assetTransactions.assetId,
+          type: assetTransactions.type,
+          amount: assetTransactions.amount,
+          date: assetTransactions.date,
+          memo: assetTransactions.memo,
+          isFixed: assetTransactions.isFixed,
+          fixedSavingId: assetTransactions.fixedSavingId,
+          toAssetId: assetTransactions.toAssetId,
+          createdAt: assetTransactions.createdAt,
+          updatedAt: assetTransactions.updatedAt,
+          asset: {
+            id: assets.id,
+            name: assets.name,
+            type: assets.type,
+            icon: assets.icon,
+            color: assets.color,
+          },
+        })
+        .from(assetTransactions)
+        .leftJoin(assets, eq(assetTransactions.assetId, assets.id))
+        .where(and(...conditions))
+        .orderBy(desc(assetTransactions.date), desc(assetTransactions.createdAt));
+
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error fetching asset transactions:", error);
+      return { success: false, error: "자산 거래 목록 조회에 실패했습니다." };
     }
-
-    const today = dayjs().format("YYYY-MM-DD");
-    const conditions = [
-      eq(assetTransactions.userId, session.user.id),
-      lte(assetTransactions.date, today),
-    ];
-    if (assetId) {
-      conditions.push(eq(assetTransactions.assetId, assetId));
-    }
-
-    const result = await db
-      .select({
-        id: assetTransactions.id,
-        assetId: assetTransactions.assetId,
-        type: assetTransactions.type,
-        amount: assetTransactions.amount,
-        date: assetTransactions.date,
-        memo: assetTransactions.memo,
-        isFixed: assetTransactions.isFixed,
-        fixedSavingId: assetTransactions.fixedSavingId,
-        toAssetId: assetTransactions.toAssetId,
-        createdAt: assetTransactions.createdAt,
-        updatedAt: assetTransactions.updatedAt,
-        asset: {
-          id: assets.id,
-          name: assets.name,
-          type: assets.type,
-          icon: assets.icon,
-          color: assets.color,
-        },
-      })
-      .from(assetTransactions)
-      .leftJoin(assets, eq(assetTransactions.assetId, assets.id))
-      .where(and(...conditions))
-      .orderBy(desc(assetTransactions.date), desc(assetTransactions.createdAt));
-
-    return { success: true, data: result };
-  } catch (error) {
-    console.error("Error fetching asset transactions:", error);
-    return { success: false, error: "자산 거래 목록 조회에 실패했습니다." };
-  }
+  });
 }
 
 /**
  * 자산 거래 단건 조회
  */
 export async function getAssetTransactionById(id: number) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: "인증이 필요합니다." };
+  return withAuth(async (userId) => {
+    try {
+      const result = await db
+        .select({
+          id: assetTransactions.id,
+          assetId: assetTransactions.assetId,
+          type: assetTransactions.type,
+          amount: assetTransactions.amount,
+          date: assetTransactions.date,
+          memo: assetTransactions.memo,
+          isFixed: assetTransactions.isFixed,
+          fixedSavingId: assetTransactions.fixedSavingId,
+          toAssetId: assetTransactions.toAssetId,
+          createdAt: assetTransactions.createdAt,
+          updatedAt: assetTransactions.updatedAt,
+          asset: {
+            id: assets.id,
+            name: assets.name,
+            type: assets.type,
+            icon: assets.icon,
+            color: assets.color,
+          },
+        })
+        .from(assetTransactions)
+        .leftJoin(assets, eq(assetTransactions.assetId, assets.id))
+        .where(
+          and(
+            eq(assetTransactions.id, id),
+            eq(assetTransactions.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      const transaction = result[0];
+      if (!transaction) {
+        return { success: false, error: "거래 내역을 찾을 수 없습니다." };
+      }
+
+      return { success: true, data: transaction };
+    } catch (error) {
+      console.error("Error fetching asset transaction:", error);
+      return { success: false, error: "거래 내역 조회에 실패했습니다." };
     }
-
-    const result = await db
-      .select({
-        id: assetTransactions.id,
-        assetId: assetTransactions.assetId,
-        type: assetTransactions.type,
-        amount: assetTransactions.amount,
-        date: assetTransactions.date,
-        memo: assetTransactions.memo,
-        isFixed: assetTransactions.isFixed,
-        fixedSavingId: assetTransactions.fixedSavingId,
-        toAssetId: assetTransactions.toAssetId,
-        createdAt: assetTransactions.createdAt,
-        updatedAt: assetTransactions.updatedAt,
-        asset: {
-          id: assets.id,
-          name: assets.name,
-          type: assets.type,
-          icon: assets.icon,
-          color: assets.color,
-        },
-      })
-      .from(assetTransactions)
-      .leftJoin(assets, eq(assetTransactions.assetId, assets.id))
-      .where(
-        and(
-          eq(assetTransactions.id, id),
-          eq(assetTransactions.userId, session.user.id),
-        ),
-      )
-      .limit(1);
-
-    const transaction = result[0];
-    if (!transaction) {
-      return { success: false, error: "거래 내역을 찾을 수 없습니다." };
-    }
-
-    return { success: true, data: transaction };
-  } catch (error) {
-    console.error("Error fetching asset transaction:", error);
-    return { success: false, error: "거래 내역 조회에 실패했습니다." };
-  }
+  });
 }
 
 /**
@@ -230,75 +219,177 @@ export async function updateAssetTransaction(
   id: number,
   data: Partial<AssetTransactionInput>,
 ) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: "인증이 필요합니다." };
-    }
+  return withAuth(async (userId) => {
+    try {
+      // 기존 거래 조회
+      const existing = await db
+        .select()
+        .from(assetTransactions)
+        .where(
+          and(eq(assetTransactions.id, id), eq(assetTransactions.userId, userId)),
+        )
+        .limit(1);
 
-    const userId = session.user.id;
+      if (!existing[0]) {
+        return { success: false, error: "거래 내역이 존재하지 않습니다." };
+      }
 
-    // 기존 거래 조회
-    const existing = await db
-      .select()
-      .from(assetTransactions)
-      .where(
-        and(eq(assetTransactions.id, id), eq(assetTransactions.userId, userId)),
-      )
-      .limit(1);
+      // 고정 저축에서 생성된 거래는 수정 불가
+      if (existing[0].isFixed) {
+        return {
+          success: false,
+          error: "고정 저축에서 생성된 거래는 수정할 수 없습니다.",
+        };
+      }
 
-    if (!existing[0]) {
-      return { success: false, error: "거래 내역이 존재하지 않습니다." };
-    }
+      const parsed = assetTransactionUpdateSchema.safeParse(data);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: z.flattenError(parsed.error).fieldErrors,
+        };
+      }
 
-    // 고정 저축에서 생성된 거래는 수정 불가
-    if (existing[0].isFixed) {
-      return {
-        success: false,
-        error: "고정 저축에서 생성된 거래는 수정할 수 없습니다.",
+      // 거래 정보 업데이트 데이터 준비
+      const updateData: Partial<typeof assetTransactions.$inferInsert> = {
+        updatedAt: new Date(),
+        ...(parsed.data.assetId !== undefined && {
+          assetId: parsed.data.assetId,
+        }),
+        ...(parsed.data.type !== undefined && { type: parsed.data.type }),
+        ...(parsed.data.amount !== undefined && {
+          amount: parsed.data.amount.toString(),
+        }),
+        ...(parsed.data.date !== undefined && { date: parsed.data.date }),
+        ...(parsed.data.memo !== undefined && {
+          memo: parsed.data.memo || null,
+        }),
+        ...(parsed.data.toAssetId !== undefined && {
+          toAssetId: parsed.data.toAssetId || null,
+        }),
       };
+
+      const newAssetId = parsed.data.assetId ?? existing[0].assetId;
+      const newType = parsed.data.type ?? existing[0].type;
+      const newAmount = parsed.data.amount?.toString() ?? existing[0].amount;
+      const newToAssetId = parsed.data.toAssetId ?? existing[0].toAssetId;
+
+      const existingOp = getBalanceOperation(existing[0].type);
+      const reverseOp = existingOp === "add" ? "subtract" : "add";
+      const newOp = getBalanceOperation(newType);
+
+      // batch 쿼리 구성: 역연산 → 거래 수정 → 새 적용
+      const queries: BatchItem<"pg">[] = [
+        // 1. 기존 잔액 역연산
+        db
+          .update(assets)
+          .set({
+            balance:
+              reverseOp === "add"
+                ? sql`${assets.balance} + ${existing[0].amount}`
+                : sql`${assets.balance} - ${existing[0].amount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, existing[0].assetId)),
+      ];
+
+      if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
+        queries.push(
+          db
+            .update(assets)
+            .set({
+              balance: sql`${assets.balance} - ${existing[0].amount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(assets.id, existing[0].toAssetId)),
+        );
+      }
+
+      // 2. 거래 수정 (RETURNING) - 인덱스 추적
+      const returningIndex = queries.length;
+      queries.push(
+        db
+          .update(assetTransactions)
+          .set(updateData)
+          .where(eq(assetTransactions.id, id))
+          .returning(),
+      );
+
+      // 3. 새 잔액 적용
+      queries.push(
+        db
+          .update(assets)
+          .set({
+            balance:
+              newOp === "add"
+                ? sql`${assets.balance} + ${newAmount}`
+                : sql`${assets.balance} - ${newAmount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, newAssetId)),
+      );
+
+      if (newType === "TRANSFER" && newToAssetId) {
+        queries.push(
+          db
+            .update(assets)
+            .set({
+              balance: sql`${assets.balance} + ${newAmount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(assets.id, newToAssetId)),
+        );
+      }
+
+      const results = await db.batch(
+        queries as [BatchItem<"pg">, ...BatchItem<"pg">[]],
+      );
+      const updated = results[returningIndex][0];
+
+      revalidatePath("/");
+
+      return { success: true, data: updated };
+    } catch (error) {
+      console.error("Error updating asset transaction:", error);
+      return { success: false, error: "자산 거래 수정에 실패했습니다." };
     }
+  });
+}
 
-    const parsed = assetTransactionUpdateSchema.safeParse(data);
-    if (!parsed.success) {
-      return {
-        success: false,
-        error: z.flattenError(parsed.error).fieldErrors,
-      };
-    }
+/**
+ * 자산 거래 삭제
+ */
+export async function deleteAssetTransaction(id: number) {
+  return withAuth(async (userId) => {
+    try {
+      // 기존 거래 조회
+      const existing = await db
+        .select()
+        .from(assetTransactions)
+        .where(
+          and(
+            eq(assetTransactions.id, id),
+            eq(assetTransactions.userId, userId),
+          ),
+        )
+        .limit(1);
 
-    // 거래 정보 업데이트 데이터 준비
-    const updateData: Partial<typeof assetTransactions.$inferInsert> = {
-      updatedAt: new Date(),
-      ...(parsed.data.assetId !== undefined && {
-        assetId: parsed.data.assetId,
-      }),
-      ...(parsed.data.type !== undefined && { type: parsed.data.type }),
-      ...(parsed.data.amount !== undefined && {
-        amount: parsed.data.amount.toString(),
-      }),
-      ...(parsed.data.date !== undefined && { date: parsed.data.date }),
-      ...(parsed.data.memo !== undefined && {
-        memo: parsed.data.memo || null,
-      }),
-      ...(parsed.data.toAssetId !== undefined && {
-        toAssetId: parsed.data.toAssetId || null,
-      }),
-    };
+      if (!existing[0]) {
+        return { success: false, error: "거래 내역이 존재하지 않습니다." };
+      }
 
-    const newAssetId = parsed.data.assetId ?? existing[0].assetId;
-    const newType = parsed.data.type ?? existing[0].type;
-    const newAmount = parsed.data.amount?.toString() ?? existing[0].amount;
-    const newToAssetId = parsed.data.toAssetId ?? existing[0].toAssetId;
+      // 고정 저축에서 생성된 거래는 삭제 불가
+      if (existing[0].isFixed) {
+        return {
+          success: false,
+          error: "고정 저축에서 생성된 거래는 삭제할 수 없습니다.",
+        };
+      }
 
-    const existingOp = getBalanceOperation(existing[0].type);
-    const reverseOp = existingOp === "add" ? "subtract" : "add";
-    const newOp = getBalanceOperation(newType);
+      const existingOp = getBalanceOperation(existing[0].type);
+      const reverseOp = existingOp === "add" ? "subtract" : "add";
 
-    // batch 쿼리 구성: 역연산 → 거래 수정 → 새 적용
-    const queries: BatchItem<"pg">[] = [
-      // 1. 기존 잔액 역연산
-      db
+      const reverseQuery = db
         .update(assets)
         .set({
           balance:
@@ -307,144 +398,34 @@ export async function updateAssetTransaction(
               : sql`${assets.balance} - ${existing[0].amount}`,
           updatedAt: new Date(),
         })
-        .where(eq(assets.id, existing[0].assetId)),
-    ];
+        .where(eq(assets.id, existing[0].assetId));
 
-    if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
-      queries.push(
-        db
-          .update(assets)
-          .set({
-            balance: sql`${assets.balance} - ${existing[0].amount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(assets.id, existing[0].toAssetId)),
-      );
+      const deleteQuery = db
+        .delete(assetTransactions)
+        .where(eq(assetTransactions.id, id));
+
+      if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
+        await db.batch([
+          reverseQuery,
+          db
+            .update(assets)
+            .set({
+              balance: sql`${assets.balance} - ${existing[0].amount}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(assets.id, existing[0].toAssetId)),
+          deleteQuery,
+        ]);
+      } else {
+        await db.batch([reverseQuery, deleteQuery]);
+      }
+
+      revalidatePath("/");
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting asset transaction:", error);
+      return { success: false, error: "자산 거래 삭제에 실패했습니다." };
     }
-
-    // 2. 거래 수정 (RETURNING) - 인덱스 추적
-    const returningIndex = queries.length;
-    queries.push(
-      db
-        .update(assetTransactions)
-        .set(updateData)
-        .where(eq(assetTransactions.id, id))
-        .returning(),
-    );
-
-    // 3. 새 잔액 적용
-    queries.push(
-      db
-        .update(assets)
-        .set({
-          balance:
-            newOp === "add"
-              ? sql`${assets.balance} + ${newAmount}`
-              : sql`${assets.balance} - ${newAmount}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(assets.id, newAssetId)),
-    );
-
-    if (newType === "TRANSFER" && newToAssetId) {
-      queries.push(
-        db
-          .update(assets)
-          .set({
-            balance: sql`${assets.balance} + ${newAmount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(assets.id, newToAssetId)),
-      );
-    }
-
-    const results = await db.batch(
-      queries as [BatchItem<"pg">, ...BatchItem<"pg">[]],
-    );
-    const updated = results[returningIndex][0];
-
-    revalidatePath("/");
-
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error("Error updating asset transaction:", error);
-    return { success: false, error: "자산 거래 수정에 실패했습니다." };
-  }
-}
-
-/**
- * 자산 거래 삭제
- */
-export async function deleteAssetTransaction(id: number) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return { success: false, error: "인증이 필요합니다." };
-    }
-
-    // 기존 거래 조회
-    const existing = await db
-      .select()
-      .from(assetTransactions)
-      .where(
-        and(
-          eq(assetTransactions.id, id),
-          eq(assetTransactions.userId, session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!existing[0]) {
-      return { success: false, error: "거래 내역이 존재하지 않습니다." };
-    }
-
-    // 고정 저축에서 생성된 거래는 삭제 불가
-    if (existing[0].isFixed) {
-      return {
-        success: false,
-        error: "고정 저축에서 생성된 거래는 삭제할 수 없습니다.",
-      };
-    }
-
-    const existingOp = getBalanceOperation(existing[0].type);
-    const reverseOp = existingOp === "add" ? "subtract" : "add";
-
-    const reverseQuery = db
-      .update(assets)
-      .set({
-        balance:
-          reverseOp === "add"
-            ? sql`${assets.balance} + ${existing[0].amount}`
-            : sql`${assets.balance} - ${existing[0].amount}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(assets.id, existing[0].assetId));
-
-    const deleteQuery = db
-      .delete(assetTransactions)
-      .where(eq(assetTransactions.id, id));
-
-    if (existing[0].type === "TRANSFER" && existing[0].toAssetId) {
-      await db.batch([
-        reverseQuery,
-        db
-          .update(assets)
-          .set({
-            balance: sql`${assets.balance} - ${existing[0].amount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(assets.id, existing[0].toAssetId)),
-        deleteQuery,
-      ]);
-    } else {
-      await db.batch([reverseQuery, deleteQuery]);
-    }
-
-    revalidatePath("/");
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error deleting asset transaction:", error);
-    return { success: false, error: "자산 거래 삭제에 실패했습니다." };
-  }
+  });
 }
