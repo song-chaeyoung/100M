@@ -83,6 +83,7 @@ export async function createFixedSaving(data: FixedSavingInput) {
               fixedSavingId: fixedSaving.id,
             })),
           )
+          .onConflictDoNothing()
           .returning();
 
         // 2) 반환된 ID로 일반거래(SAVING) 전체 한번에 insert
@@ -332,6 +333,7 @@ export async function updateFixedSaving(
                   fixedSavingId: id,
                 })),
               )
+              .onConflictDoNothing()
               .returning();
 
             // 일반거래(SAVING) 전체 한번에 insert
@@ -499,6 +501,7 @@ export async function toggleFixedSavingActive(id: number) {
                   fixedSavingId: id,
                 })),
               )
+              .onConflictDoNothing()
               .returning();
 
             // 일반거래(SAVING) 전체 한번에 insert

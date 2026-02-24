@@ -232,6 +232,11 @@ export const transactions = pgTable(
     linkedAssetTxIdx: index("transaction_linked_asset_tx_idx").on(
       t.linkedAssetTransactionId,
     ),
+    fixedExpenseDateUniqueIdx: uniqueIndex(
+      "transaction_fixed_expense_date_idx",
+    )
+      .on(t.fixedExpenseId, t.date)
+      .where(sql`fixed_expense_id IS NOT NULL`),
   }),
 );
 
@@ -354,6 +359,11 @@ export const assetTransactions = pgTable(
     fixedSavingIdx: index("asset_transaction_fixed_saving_idx").on(
       t.fixedSavingId,
     ),
+    fixedSavingDateUniqueIdx: uniqueIndex(
+      "asset_transaction_fixed_saving_date_idx",
+    )
+      .on(t.fixedSavingId, t.date)
+      .where(sql`fixed_saving_id IS NOT NULL`),
   }),
 );
 

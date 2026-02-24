@@ -59,7 +59,7 @@ export async function createFixedExpense(data: FixedExpenseInput) {
       }));
 
       if (transactionsToInsert.length > 0) {
-        await db.insert(transactions).values(transactionsToInsert);
+        await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
       }
 
       const result = fixedExpense;
@@ -267,7 +267,7 @@ export async function updateFixedExpense(
           }));
 
           if (transactionsToInsert.length > 0) {
-            await db.insert(transactions).values(transactionsToInsert);
+            await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
           }
         }
       }
@@ -383,7 +383,7 @@ export async function toggleFixedExpenseActive(id: number) {
           }));
 
           if (transactionsToInsert.length > 0) {
-            await db.insert(transactions).values(transactionsToInsert);
+            await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
           }
         }
       }
