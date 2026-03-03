@@ -4,10 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockHoldingFormSheet } from "@/components/stocks/stock-holding-form-sheet";
+import { StockHoldingCard } from "@/components/stocks/stock-holding-card";
 import { deleteStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
-import { Plus, TrendingUp, TrendingDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatKRW } from "@/lib/stocks/format";
+import { calcTotalStats } from "@/lib/stocks/calc";
 import type {
   StockHoldingResponse,
   StockPriceResponse,
@@ -18,23 +21,6 @@ interface StockHoldingsListProps {
   holdings: StockHoldingResponse[];
   prices: StockPriceResponse[];
   isLoading?: boolean;
-}
-
-/**
- * KRW 포맷 (예: 1,234,567원 / $1,234.56)
- */
-function formatKRW(amount: number): string {
-  return amount.toLocaleString("ko-KR") + "원";
-}
-
-function formatUSD(amount: number): string {
-  return (
-    "$" +
-    amount.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  );
 }
 
 export function StockHoldingsList({
@@ -67,35 +53,15 @@ export function StockHoldingsList({
     }
   };
 
-  // 보유내역에 시세 매칭
-  const holdingsWithPrices = holdings.map((holding) => {
-    const price = prices.find(
+  const holdingsWithPrices = holdings.map((holding) => ({
+    holding,
+    price: prices.find(
       (p) => p.stockCode === holding.stockCode && p.country === holding.country,
-    );
-    return { holding, price };
-  });
+    ),
+  }));
 
-  // 총 평가금액 (KRW 기준)
-  const totalEvalKRW = holdingsWithPrices.reduce((acc, { holding, price }) => {
-    if (!price?.krwPrice) return acc;
-    return acc + Number(price.krwPrice) * holding.quantity;
-  }, 0);
-
-  // 총 투자금액 (KRW 기준)
-  const totalInvestedKRW = holdingsWithPrices.reduce(
-    (acc, { holding, price }) => {
-      let avgPriceKRW = Number(holding.avgPrice);
-      if (holding.currency === "USD" && price?.exchangeRate) {
-        avgPriceKRW = avgPriceKRW * Number(price.exchangeRate);
-      }
-      return acc + avgPriceKRW * holding.quantity;
-    },
-    0,
-  );
-
-  const totalProfitLoss = totalEvalKRW - totalInvestedKRW;
-  const totalProfitRate =
-    totalInvestedKRW > 0 ? (totalProfitLoss / totalInvestedKRW) * 100 : 0;
+  const { totalEvalKRW, totalProfitLoss, totalProfitRate } =
+    calcTotalStats(holdingsWithPrices);
 
   if (isLoading) {
     return (
@@ -149,155 +115,15 @@ export function StockHoldingsList({
         </div>
       ) : (
         <div className="space-y-3">
-          {holdingsWithPrices.map(({ holding, price }) => {
-            // 현재가 (KRW 환산)
-            const currentPriceKRW = price?.krwPrice
-              ? Number(price.krwPrice)
-              : null;
-            // 평단가 (KRW 환산)
-            let avgPriceKRW = Number(holding.avgPrice);
-            if (holding.currency === "USD" && price?.exchangeRate) {
-              avgPriceKRW = avgPriceKRW * Number(price.exchangeRate);
-            }
-
-            const evalAmount =
-              currentPriceKRW != null
-                ? currentPriceKRW * holding.quantity
-                : null;
-            const investAmount = avgPriceKRW * holding.quantity;
-            const profitLoss =
-              evalAmount != null ? evalAmount - investAmount : null;
-            const profitRate =
-              investAmount > 0 && profitLoss != null
-                ? (profitLoss / investAmount) * 100
-                : null;
-
-            const changeRate = price?.changeRate
-              ? Number(price.changeRate)
-              : null;
-
-            return (
-              <div
-                key={holding.id}
-                className="rounded-xl border bg-card p-4 space-y-3"
-              >
-                {/* 헤더 */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">
-                        {holding.stockName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {holding.stockCode}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded font-semibold",
-                          holding.country === "US"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-blue-100 text-blue-700",
-                        )}
-                      >
-                        {holding.country}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {holding.quantity.toLocaleString()}주 보유
-                    </p>
-                  </div>
-
-                  {/* 현재가 + 등락 */}
-                  <div className="text-right">
-                    {price ? (
-                      <>
-                        <p className="text-sm font-medium">
-                          {holding.currency === "USD"
-                            ? formatUSD(Number(price.currentPrice))
-                            : formatKRW(Number(price.currentPrice))}
-                        </p>
-                        {changeRate != null && (
-                          <p
-                            className={cn(
-                              "text-xs font-medium",
-                              changeRate > 0 && "text-red-500",
-                              changeRate < 0 && "text-blue-500",
-                              changeRate === 0 && "text-muted-foreground",
-                            )}
-                          >
-                            {changeRate > 0 ? "▲" : changeRate < 0 ? "▼" : "─"}{" "}
-                            {Math.abs(changeRate).toFixed(2)}%
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">시세 없음</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* 평가금액 / 손익 */}
-                {evalAmount != null && profitLoss != null && (
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">평가금액</p>
-                      <p className="font-medium">
-                        {formatKRW(Math.round(evalAmount))}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">손익</p>
-                      <p
-                        className={cn(
-                          "font-medium",
-                          profitLoss > 0 && "text-red-500",
-                          profitLoss < 0 && "text-blue-500",
-                          profitLoss === 0 && "text-foreground",
-                        )}
-                      >
-                        {profitLoss >= 0 ? "+" : ""}
-                        {formatKRW(Math.round(profitLoss))}
-                        {profitRate != null && (
-                          <span className="ml-1 text-xs">
-                            ({profitRate >= 0 ? "+" : ""}
-                            {profitRate.toFixed(2)}%)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 평단가 */}
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    평단가{" "}
-                    <span className="text-foreground font-medium">
-                      {holding.currency === "USD"
-                        ? formatUSD(Number(holding.avgPrice))
-                        : formatKRW(Number(holding.avgPrice))}
-                    </span>
-                  </span>
-
-                  {/* 수정/삭제 버튼 */}
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEdit(holding)}
-                      className="p-1 hover:text-foreground transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(holding.id)}
-                      className="p-1 hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {holdingsWithPrices.map(({ holding, price }) => (
+            <StockHoldingCard
+              key={holding.id}
+              holding={holding}
+              price={price}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
       )}
 

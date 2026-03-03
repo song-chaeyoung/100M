@@ -284,6 +284,7 @@ export async function fetchUSStockPrice(
   stockCode: string,
   market: "NYSE" | "NASDAQ" | "AMEX",
   fallbackName?: string,
+  fallbackExchangeRate?: string | null,
 ): Promise<NewStockPrice | null> {
   try {
     const primaryExcd = MARKET_TO_EXCD[market];
@@ -326,7 +327,11 @@ export async function fetchUSStockPrice(
     const basePrice = output.base; // 전일 종가
     const changeRate = output.rate;
     const stockName = (output.rsym || "").trim() || fallbackName || stockCode;
-    const exchangeRate = output.exrt; // USD/KRW 환율
+    // 장 마감 시 exrt가 빈 문자열로 올 수 있음 → DB에 저장된 최근 환율로 fallback
+    const exchangeRate =
+      output.exrt && output.exrt !== "" && Number(output.exrt) > 0
+        ? output.exrt
+        : (fallbackExchangeRate ?? null);
 
     // foundExcd → market 역매핑
     const EXCD_TO_MARKET: Record<string, "NYSE" | "NASDAQ" | "AMEX"> = {
@@ -402,12 +407,13 @@ export async function fetchUSStockPricesWithQueue(
     stockCode: string;
     market: "NYSE" | "NASDAQ" | "AMEX";
     stockName?: string;
+    fallbackExchangeRate?: string | null;
   }[],
 ): Promise<NewStockPrice[]> {
   const tasks = stocks.map(
-    ({ stockCode, market, stockName }) =>
+    ({ stockCode, market, stockName, fallbackExchangeRate }) =>
       () =>
-        fetchUSStockPrice(stockCode, market, stockName),
+        fetchUSStockPrice(stockCode, market, stockName, fallbackExchangeRate),
   );
 
   const results = await runWithRateLimit(tasks, 10); // 해외는 더 보수적으로 10건/초

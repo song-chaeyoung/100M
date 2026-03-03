@@ -288,15 +288,34 @@ export async function getStockPricesForAsset(assetId: number) {
 
       if (missingUS.length > 0) {
         const US_MARKETS = new Set(["NYSE", "NASDAQ", "AMEX"]);
+
+        // DB에 저장된 최근 환율 (장 마감 시 KIS exrt가 빈 문자열로 오는 경우 fallback용)
+        const recentExchangeRate = await db
+          .select({ exchangeRate: stockPrices.exchangeRate })
+          .from(stockPrices)
+          .where(
+            and(
+              eq(stockPrices.country, "US"),
+              sql`${stockPrices.exchangeRate} IS NOT NULL`,
+            ),
+          )
+          .orderBy(sql`${stockPrices.updatedAt} DESC`)
+          .limit(1)
+          .then((rows) => rows[0]?.exchangeRate ?? null);
+
+        if (recentExchangeRate) {
+          console.log(`[KIS] fallback 환율 사용: ${recentExchangeRate}`);
+        }
+
         const usPrices = await fetchUSStockPricesWithQueue(
           missingUS.map((h) => ({
             stockCode: h.stockCode,
-            // market이 KR 코드(KOSPI 등)면 NYSE로 폴백 (기존 데이터 호환)
             market: (US_MARKETS.has(h.market) ? h.market : "NYSE") as
               | "NYSE"
               | "NASDAQ"
               | "AMEX",
             stockName: h.stockName,
+            fallbackExchangeRate: recentExchangeRate,
           })),
         );
         freshPrices.push(...usPrices);
