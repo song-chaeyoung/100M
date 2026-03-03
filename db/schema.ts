@@ -488,7 +488,10 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
     fields: [assets.userId],
     references: [users.id],
   }),
-  transactions: many(assetTransactions),
+  transactions: many(assetTransactions, { relationName: "asset_transactions" }),
+  incomingTransfers: many(assetTransactions, {
+    relationName: "asset_transfers_to",
+  }),
   fixedSavings: many(fixedSavings),
   stockHoldings: many(stockHoldings),
 }));
@@ -501,10 +504,12 @@ export const assetTransactionsRelations = relations(
       references: [users.id],
     }),
     asset: one(assets, {
+      relationName: "asset_transactions",
       fields: [assetTransactions.assetId],
       references: [assets.id],
     }),
     toAsset: one(assets, {
+      relationName: "asset_transfers_to",
       fields: [assetTransactions.toAssetId],
       references: [assets.id],
     }),
