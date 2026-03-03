@@ -3,10 +3,18 @@ import { notFound } from "next/navigation";
 import { getAssetById } from "@/app/actions/assets";
 import { getAssetTransactions } from "@/app/actions/asset-transactions";
 import { getAssets } from "@/app/actions/assets";
+import {
+  getStockHoldingsByAsset,
+  getStockPricesForAsset,
+} from "@/app/actions/stocks";
 import { AssetDetailClient } from "@/components/assets/asset-detail-client";
 import { handleApiResults } from "@/lib/utils/api-handler";
 import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
+import type {
+  StockHoldingResponse,
+  StockPriceResponse,
+} from "@/lib/validations/stock";
 
 export const metadata: Metadata = {
   title: "자산 상세",
@@ -26,7 +34,6 @@ export default async function AssetDetailPage({
     notFound();
   }
 
-  // API 호출 및 에러 처리를 유틸리티 함수로 위임
   const { data, errors } = await handleApiResults<
     [Asset | null, AssetTransaction[], Asset[]]
   >([getAssetById(assetIdNum), getAssetTransactions(assetIdNum), getAssets()], {
@@ -40,11 +47,35 @@ export default async function AssetDetailPage({
 
   const [asset, transactions, allAssets] = data;
 
+  // STOCK 타입일 때만 주식 데이터 추가 페칭
+  let stockHoldings: StockHoldingResponse[] = [];
+  let stockPrices: StockPriceResponse[] = [];
+
+  if (asset?.type === "STOCK") {
+    const [holdingsResult, pricesResult] = await Promise.allSettled([
+      getStockHoldingsByAsset(assetIdNum),
+      getStockPricesForAsset(assetIdNum),
+    ]);
+
+    if (
+      holdingsResult.status === "fulfilled" &&
+      holdingsResult.value?.success
+    ) {
+      stockHoldings = (holdingsResult.value.data ??
+        []) as StockHoldingResponse[];
+    }
+    if (pricesResult.status === "fulfilled" && pricesResult.value?.success) {
+      stockPrices = (pricesResult.value.data ?? []) as StockPriceResponse[];
+    }
+  }
+
   return (
     <AssetDetailClient
       asset={asset}
       transactions={transactions}
       allAssets={allAssets}
+      stockHoldings={stockHoldings}
+      stockPrices={stockPrices}
       errors={errors.length > 0 ? errors : undefined}
     />
   );

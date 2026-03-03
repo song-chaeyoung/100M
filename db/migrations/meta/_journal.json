@@ -50,6 +50,13 @@
       "when": 1771915470452,
       "tag": "0006_broken_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772504236295,
+      "tag": "0007_naive_miss_america",
+      "breakpoints": true
     }
   ]
 }

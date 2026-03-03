@@ -232,9 +232,7 @@ export const transactions = pgTable(
     linkedAssetTxIdx: index("transaction_linked_asset_tx_idx").on(
       t.linkedAssetTransactionId,
     ),
-    fixedExpenseDateUniqueIdx: uniqueIndex(
-      "transaction_fixed_expense_date_idx",
-    )
+    fixedExpenseDateUniqueIdx: uniqueIndex("transaction_fixed_expense_date_idx")
       .on(t.fixedExpenseId, t.date)
       .where(sql`fixed_expense_id IS NOT NULL`),
   }),
@@ -418,6 +416,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   assets: many(assets),
   assetTransactions: many(assetTransactions),
   fixedSavings: many(fixedSavings),
+  stockHoldings: many(stockHoldings),
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -491,6 +490,7 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
   }),
   transactions: many(assetTransactions),
   fixedSavings: many(fixedSavings),
+  stockHoldings: many(stockHoldings),
 }));
 
 export const assetTransactionsRelations = relations(
@@ -568,3 +568,138 @@ export type NewAssetTransaction = typeof assetTransactions.$inferInsert;
 
 export type FixedSaving = typeof fixedSavings.$inferSelect;
 export type NewFixedSaving = typeof fixedSavings.$inferInsert;
+
+// -------------------------------------------------------------------
+// 6. Stock Tables
+// -------------------------------------------------------------------
+
+// 종목 마스터 (국내 + 해외, 모든 사용자 공유)
+export const stockMaster = pgTable(
+  "stock_master",
+  {
+    id: serial("id").primaryKey(),
+
+    stockCode: text("stock_code").notNull(), // 005930, AAPL
+    stockName: text("stock_name").notNull(), // 삼성전자, Apple Inc.
+    stockNameEn: text("stock_name_en"), // 영문명
+    market: text("market").notNull(), // KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX
+    country: text("country").notNull().default("KR"), // KR, US
+
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    codeMarketIdx: uniqueIndex("stock_master_code_market_idx").on(
+      t.stockCode,
+      t.market,
+    ),
+    nameIdx: index("stock_master_name_idx").on(t.stockName),
+    countryIdx: index("stock_master_country_idx").on(t.country),
+  }),
+);
+
+// 주식 시세 캐시 (모든 사용자 공유)
+export const stockPrices = pgTable(
+  "stock_price",
+  {
+    id: serial("id").primaryKey(),
+
+    stockCode: text("stock_code").notNull(), // 005930, AAPL
+    stockName: text("stock_name").notNull(), // 삼성전자, Apple Inc.
+    market: text("market").notNull(), // KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX
+    country: text("country").notNull().default("KR"), // KR, US
+
+    currentPrice: decimal("current_price", {
+      precision: 12,
+      scale: 2,
+    }).notNull(), // 원화폐 단위 (KRW or USD)
+    previousClose: decimal("previous_close", { precision: 12, scale: 2 }),
+    changeRate: decimal("change_rate", { precision: 8, scale: 4 }),
+    currency: text("currency").notNull().default("KRW"), // KRW, USD
+
+    // KRW 환산가 (KRW 종목은 currentPrice와 동일, USD 종목은 currentPrice × exchangeRate)
+    krwPrice: decimal("krw_price", { precision: 16, scale: 0 }),
+    // 조회 시점 환율 (USD/KRW)
+    exchangeRate: decimal("exchange_rate", { precision: 10, scale: 4 }),
+
+    priceDate: date("price_date", { mode: "string" }).notNull(), // 기준일 YYYY-MM-DD
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    stockCodeIdx: uniqueIndex("stock_price_code_idx").on(
+      t.stockCode,
+      t.country,
+    ),
+    priceDateIdx: index("stock_price_date_idx").on(t.priceDate),
+  }),
+);
+
+// 사용자별 주식 보유 내역
+export const stockHoldings = pgTable(
+  "stock_holding",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    // 연결된 자산 계좌 (NOT NULL: STOCK 타입 asset 먼저 생성 필수)
+    assetId: integer("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+
+    stockCode: text("stock_code").notNull(), // 005930, AAPL
+    stockName: text("stock_name").notNull(), // 삼성전자, Apple Inc.
+    country: text("country").notNull().default("KR"), // KR, US
+
+    quantity: integer("quantity").notNull(),
+    avgPrice: decimal("avg_price", { precision: 12, scale: 2 }).notNull(), // 평단가 (원화폐 단위)
+    currency: text("currency").notNull().default("KRW"), // KRW, USD
+
+    memo: text("memo"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    userIdx: index("stock_holding_user_idx").on(t.userId),
+    stockCodeIdx: index("stock_holding_stock_code_idx").on(t.stockCode),
+    userStockIdx: uniqueIndex("stock_holding_user_stock_idx").on(
+      t.userId,
+      t.assetId,
+      t.stockCode,
+      t.country,
+    ),
+  }),
+);
+
+// -------------------------------------------------------------------
+// 7. Stock Relations
+// -------------------------------------------------------------------
+
+export const stockMasterRelations = relations(stockMaster, ({}) => ({}));
+
+export const stockPricesRelations = relations(stockPrices, ({}) => ({}));
+
+export const stockHoldingsRelations = relations(stockHoldings, ({ one }) => ({
+  user: one(users, {
+    fields: [stockHoldings.userId],
+    references: [users.id],
+  }),
+  asset: one(assets, {
+    fields: [stockHoldings.assetId],
+    references: [assets.id],
+  }),
+}));
+
+// -------------------------------------------------------------------
+// 8. Stock Type Exports
+// -------------------------------------------------------------------
+
+export type StockMaster = typeof stockMaster.$inferSelect;
+export type NewStockMaster = typeof stockMaster.$inferInsert;
+
+export type StockPrice = typeof stockPrices.$inferSelect;
+export type NewStockPrice = typeof stockPrices.$inferInsert;
+
+export type StockHolding = typeof stockHoldings.$inferSelect;
+export type NewStockHolding = typeof stockHoldings.$inferInsert;

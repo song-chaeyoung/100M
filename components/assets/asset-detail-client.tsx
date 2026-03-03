@@ -12,11 +12,18 @@ import { deleteAssetTransaction } from "@/app/actions/asset-transactions";
 import { toast } from "sonner";
 import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
+import type {
+  StockHoldingResponse,
+  StockPriceResponse,
+} from "@/lib/validations/stock";
+import { StockHoldingsList } from "@/components/stocks/stock-holdings-list";
 
 interface AssetDetailClientProps {
   asset: Asset | null;
   transactions: AssetTransaction[];
   allAssets: Asset[];
+  stockHoldings?: StockHoldingResponse[];
+  stockPrices?: StockPriceResponse[];
   errors?: (string | undefined)[];
 }
 
@@ -24,6 +31,8 @@ export function AssetDetailClient({
   asset,
   transactions,
   allAssets,
+  stockHoldings = [],
+  stockPrices = [],
   errors,
 }: AssetDetailClientProps) {
   const [transactionSheet, setTransactionSheet] = useState<
@@ -99,11 +108,20 @@ export function AssetDetailClient({
     <div className="container mx-auto p-4 space-y-6 pb-24">
       <AssetHeader asset={asset} onEdit={() => setAssetFormSheetOpen(true)} />
 
-      <AssetTransactionList
-        transactions={transactions}
-        onEdit={handleEditTransaction}
-        onDelete={handleDeleteTransaction}
-      />
+      {/* STOCK 타입: 주식 보유내역 */}
+      {asset.type === "STOCK" ? (
+        <StockHoldingsList
+          assetId={asset.id}
+          holdings={stockHoldings}
+          prices={stockPrices}
+        />
+      ) : (
+        <AssetTransactionList
+          transactions={transactions}
+          onEdit={handleEditTransaction}
+          onDelete={handleDeleteTransaction}
+        />
+      )}
 
       {/* 플로팅 버튼 */}
       <Button
