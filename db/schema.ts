@@ -650,8 +650,10 @@ export const stockHoldings = pgTable(
     stockCode: text("stock_code").notNull(), // 005930, AAPL
     stockName: text("stock_name").notNull(), // 삼성전자, Apple Inc.
     country: text("country").notNull().default("KR"), // KR, US
+    market: text("market").notNull().default("KOSPI"), // KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX
 
-    quantity: integer("quantity").notNull(),
+    // 미국 소수점 주식(fractional shares) 지원: 최대 소수 6자리
+    quantity: decimal("quantity", { precision: 12, scale: 6 }).notNull(),
     avgPrice: decimal("avg_price", { precision: 12, scale: 2 }).notNull(), // 평단가 (원화폐 단위)
     currency: text("currency").notNull().default("KRW"), // KRW, USD
 

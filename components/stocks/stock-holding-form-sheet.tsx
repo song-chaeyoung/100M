@@ -113,6 +113,7 @@ export function StockHoldingFormSheet({
         stockCode: data.stockCode,
         stockName: data.stockName,
         country: data.country,
+        market: data.market, // KOSPI / KOSDAQ / NYSE / NASDAQ / AMEX
         quantity: Number(data.quantity.replace(/,/g, "")),
         avgPrice: Number(data.avgPrice.replace(/,/g, "")),
         currency: data.country === "US" ? ("USD" as const) : ("KRW" as const),
@@ -172,7 +173,14 @@ export function StockHoldingFormSheet({
 
         {/* 수량 */}
         <div className="space-y-2">
-          <Label>보유 수량 *</Label>
+          <Label>
+            보유 수량 *
+            {country === "US" && (
+              <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                (소수점 가능)
+              </span>
+            )}
+          </Label>
           <Controller
             name="quantity"
             control={control}
@@ -180,10 +188,19 @@ export function StockHoldingFormSheet({
               <div className="relative">
                 <Input
                   type="text"
-                  inputMode="numeric"
+                  inputMode={country === "US" ? "decimal" : "numeric"}
                   value={field.value}
-                  onChange={(e) => field.onChange(formatAmount(e.target.value))}
-                  placeholder="0"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (country === "US") {
+                      // 소수점: 숫자와 소수점만 허용
+                      if (/^\d*\.?\d{0,6}$/.test(raw)) field.onChange(raw);
+                    } else {
+                      // 정수: 기존 formatAmount 사용
+                      field.onChange(formatAmount(raw));
+                    }
+                  }}
+                  placeholder={country === "US" ? "0.5" : "0"}
                   className="text-right pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">

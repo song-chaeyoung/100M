@@ -21,7 +21,8 @@ const stockHoldingSchema = z.object({
   stockCode: z.string().min(1, "종목 코드를 입력하세요."),
   stockName: z.string().min(1, "종목명을 입력하세요."),
   country: z.enum(["KR", "US"]).default("KR"),
-  quantity: z.number().int().positive("수량은 1 이상이어야 합니다."),
+  market: z.string().default("KOSPI"), // KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX
+  quantity: z.number().positive("수량은 0보다 커야 합니다."),
   avgPrice: z.number().positive("평단가는 0 초과여야 합니다.").multipleOf(0.01),
   currency: z.enum(["KRW", "USD"]).default("KRW"),
   memo: z.string().optional(),
@@ -80,7 +81,8 @@ export async function createStockHolding(data: StockHoldingInput) {
           stockCode,
           stockName,
           country,
-          quantity,
+          market: parsed.data.market ?? (country === "US" ? "NYSE" : "KOSPI"), // market 저장
+          quantity: quantity.toString(),
           avgPrice: avgPrice.toString(),
           currency,
           memo: memo ?? null,
@@ -127,7 +129,7 @@ export async function updateStockHolding(
       const [result] = await db
         .update(stockHoldings)
         .set({
-          ...(d.quantity !== undefined && { quantity: d.quantity }),
+          ...(d.quantity !== undefined && { quantity: d.quantity.toString() }), // decimal
           ...(d.avgPrice !== undefined && { avgPrice: d.avgPrice.toString() }),
           ...(d.memo !== undefined && { memo: d.memo ?? null }),
           updatedAt: new Date(),
@@ -233,12 +235,7 @@ export async function getStockPricesForAsset(assetId: number) {
           stockCode: stockHoldings.stockCode,
           stockName: stockHoldings.stockName,
           country: stockHoldings.country,
-          market: sql<string>`
-            CASE
-              WHEN ${stockHoldings.country} = 'KR' THEN 'KOSPI'
-              ELSE 'NYSE'
-            END
-          `,
+          market: stockHoldings.market, // 실제 market 컴럼 사용
         })
         .from(stockHoldings)
         .where(
@@ -282,19 +279,24 @@ export async function getStockPricesForAsset(assetId: number) {
         const krPrices = await fetchKRStockPricesWithQueue(
           missingKR.map((h) => ({
             stockCode: h.stockCode,
-            market: "KOSPI" as const,
-            stockName: h.stockName, // ← fallback용 종목명 전달
+            market: h.market as "KOSPI" | "KOSDAQ", // 실제 market 사용
+            stockName: h.stockName,
           })),
         );
         freshPrices.push(...krPrices);
       }
 
       if (missingUS.length > 0) {
+        const US_MARKETS = new Set(["NYSE", "NASDAQ", "AMEX"]);
         const usPrices = await fetchUSStockPricesWithQueue(
           missingUS.map((h) => ({
             stockCode: h.stockCode,
-            market: "NYSE" as const,
-            stockName: h.stockName, // ← fallback용 종목명 전달
+            // market이 KR 코드(KOSPI 등)면 NYSE로 폴백 (기존 데이터 호환)
+            market: (US_MARKETS.has(h.market) ? h.market : "NYSE") as
+              | "NYSE"
+              | "NASDAQ"
+              | "AMEX",
+            stockName: h.stockName,
           })),
         );
         freshPrices.push(...usPrices);

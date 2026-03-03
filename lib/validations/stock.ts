@@ -31,9 +31,13 @@ export const stockHoldingFormSchema = z.object({
   quantity: z
     .string()
     .min(1, "수량을 입력하세요.")
-    .refine((v) => Number.isInteger(Number(v)) && Number(v) > 0, {
-      message: "수량은 1 이상의 정수여야 합니다.",
-    }),
+    .refine(
+      (v) => {
+        const n = Number(v.replace(/,/g, ""));
+        return !isNaN(n) && n > 0;
+      },
+      { message: "수량은 0보다 커야 합니다." },
+    ),
   avgPrice: z
     .string()
     .min(1, "평단가를 입력하세요.")
@@ -57,7 +61,7 @@ export const stockHoldingResponseSchema = z.object({
   stockCode: z.string(),
   stockName: z.string(),
   country: z.string(),
-  quantity: z.number(),
+  quantity: z.coerce.number().positive(), // decimal DB 반환값 파싱
   avgPrice: z.string(),
   currency: z.string(),
   memo: z.string().nullable(),
