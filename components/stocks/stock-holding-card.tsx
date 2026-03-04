@@ -12,6 +12,7 @@ import type {
 interface StockHoldingCardProps {
   holding: StockHoldingResponse;
   price: StockPriceResponse | undefined;
+  fallbackExchangeRate?: number | null;
   onEdit: (holding: StockHoldingResponse) => void;
   onDelete: (id: number) => void;
 }
@@ -19,12 +20,14 @@ interface StockHoldingCardProps {
 export function StockHoldingCard({
   holding,
   price,
+  fallbackExchangeRate,
   onEdit,
   onDelete,
 }: StockHoldingCardProps) {
   const { evalAmount, profitLoss, profitRate, changeRate } = calcHoldingStats(
     holding,
     price,
+    fallbackExchangeRate,
   );
 
   return (

@@ -19,12 +19,21 @@ export interface HoldingStats {
 export function calcHoldingStats(
   holding: StockHoldingResponse,
   price: StockPriceResponse | undefined,
+  fallbackExchangeRate?: number | null,
 ): HoldingStats {
-  const currentPriceKRW = price?.krwPrice ? Number(price.krwPrice) : null;
+  // krwPrice가 없을 때(장 마감 등) fallbackExchangeRate(Zustand store 환율)로 계산
+  const currentPriceKRW = price?.krwPrice
+    ? Number(price.krwPrice)
+    : price?.currentPrice && holding.currency === "USD" && fallbackExchangeRate
+      ? Math.round(Number(price.currentPrice) * fallbackExchangeRate)
+      : null;
 
   let avgPriceKRW = Number(holding.avgPrice);
-  if (holding.currency === "USD" && price?.exchangeRate) {
-    avgPriceKRW = avgPriceKRW * Number(price.exchangeRate);
+  if (holding.currency === "USD") {
+    const rate = price?.exchangeRate
+      ? Number(price.exchangeRate)
+      : (fallbackExchangeRate ?? null);
+    if (rate) avgPriceKRW = avgPriceKRW * rate;
   }
 
   const evalAmount =

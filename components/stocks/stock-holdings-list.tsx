@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useExchangeRateStore } from "@/store/exchange-rate";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockHoldingFormSheet } from "@/components/stocks/stock-holding-form-sheet";
@@ -52,6 +53,18 @@ export function StockHoldingsList({
       toast.error("삭제에 실패했습니다.");
     }
   };
+
+  const {
+    rate: exchangeRate,
+    date: exchangeRateDate,
+    fetchRate,
+  } = useExchangeRateStore();
+
+  useEffect(() => {
+    // 미국 주식이 있을 때만 환율 fetch
+    const hasUS = holdings.some((h) => h.country === "US");
+    if (hasUS) fetchRate();
+  }, [holdings, fetchRate]);
 
   const holdingsWithPrices = holdings.map((holding) => ({
     holding,
@@ -115,11 +128,18 @@ export function StockHoldingsList({
         </div>
       ) : (
         <div className="space-y-3">
+          {/* 미국 주식 포함 시 환율 기준일 안내 */}
+          {holdings.some((h) => h.country === "US") && exchangeRateDate && (
+            <p className="text-[11px] text-muted-foreground text-right">
+              환율 기준: {exchangeRateDate} (ECB)
+            </p>
+          )}
           {holdingsWithPrices.map(({ holding, price }) => (
             <StockHoldingCard
               key={holding.id}
               holding={holding}
               price={price}
+              fallbackExchangeRate={exchangeRate}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
