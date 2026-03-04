@@ -393,7 +393,6 @@ export async function createStockHolding(data: StockHoldingInput) {
         await db.insert(transactions).values({
           userId,
           type: "SAVING",
-          categoryId: 3,
           amount: parsed.data.investmentKRW.toString(),
           date: txDate,
           memo,
