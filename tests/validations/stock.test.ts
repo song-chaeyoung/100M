@@ -20,6 +20,8 @@ describe("stockHoldingFormSchema", () => {
     quantity: "10",
     avgPrice: "70000",
     memo: "",
+    recordAsSaving: false,
+    purchaseDate: "2025-06-01",
   };
 
   const validUsData = {
@@ -31,6 +33,8 @@ describe("stockHoldingFormSchema", () => {
     quantity: "0.5",
     avgPrice: "180.5",
     memo: "장기 보유",
+    recordAsSaving: false,
+    purchaseDate: "2025-06-01",
   };
 
   describe("정상 케이스", () => {
