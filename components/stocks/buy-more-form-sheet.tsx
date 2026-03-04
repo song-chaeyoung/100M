@@ -121,7 +121,6 @@ export function BuyMoreFormSheet({
         buyPrice: Number(data.buyPrice.replace(/,/g, "")),
         investmentKRW: Number(data.investmentKRW.replace(/,/g, "")),
         purchaseDate: dayjs(data.purchaseDate).format("YYYY-MM-DD"),
-        categoryId: 3, // 투자 카테고리
       });
 
       if (result?.success) {

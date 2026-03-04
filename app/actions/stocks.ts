@@ -8,8 +8,9 @@ import {
   assets,
   assetTransactions,
   transactions,
+  categories,
 } from "@/db/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
@@ -17,6 +18,64 @@ import {
   fetchUSStockPricesWithQueue,
 } from "@/lib/kis-stocks";
 import type { NewStockPrice } from "@/db/schema";
+
+// ─────────────────────────────────────────────
+// 유틸
+// ─────────────────────────────────────────────
+
+/**
+ * KST(UTC+9) 기준 오늘 날짜 반환 (YYYY-MM-DD)
+ * toISOString()은 UTC 기준이라 오전 9시 이전에 전날 날짜를 반환하는 문제 방지
+ */
+function getTodayKST(): string {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0];
+}
+
+type HoldingForBalance = {
+  stockCode: string;
+  country: string;
+  currency: string;
+  quantity: string;
+  avgPrice: string;
+};
+
+type PriceForBalance = {
+  stockCode: string;
+  country?: string | null;
+  krwPrice?: string | null;
+  currentPrice: string;
+  exchangeRate?: string | null;
+};
+
+/**
+ * 보유 종목 목록과 시세 Map으로 총 평가금액(KRW) 합산
+ * syncAssetBalance / getStockPricesForAsset 공통 사용
+ * 제네릭으로 DB 타입(StockPrice)과 NewStockPrice 모두 수용
+ */
+function calcTotalBalance<P extends PriceForBalance>(
+  holdings: HoldingForBalance[],
+  priceMap: Map<string, P>,
+): number {
+  let total = 0;
+  for (const h of holdings) {
+    const key = `${h.stockCode}:${h.country}`;
+    const p = priceMap.get(key);
+    const qty = Number(h.quantity);
+
+    if (p?.krwPrice) {
+      // 실시간 KRW 환산가
+      total += Number(p.krwPrice) * qty;
+    } else if (p?.currentPrice && h.currency === "USD" && p.exchangeRate) {
+      // krwPrice 없을 때: currentPrice × exchangeRate
+      total +=
+        Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
+    } else {
+      // 최종 fallback: 평단가 기준
+      total += Number(h.avgPrice) * qty;
+    }
+  }
+  return total;
+}
 
 // ─────────────────────────────────────────────
 // 자산 잔액 동기화 (실시간 시세 기반)
@@ -52,7 +111,7 @@ async function syncAssetBalance(
     }
 
     // 2. 오늘 날짜 캐시 확인
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayKST();
     const codes = holdings.map((h) => h.stockCode);
 
     const cached = await db
@@ -126,34 +185,18 @@ async function syncAssetBalance(
       await upsertStockPrices(freshPrices);
     }
 
-    // 4. 최신 시세로 평가금액 합산
+    // 4. DB에서 최신 시세 전체 조회
+    // (API 실패 종목도 이전 날짜 캐시를 활용할 수 있도록 날짜 필터 없이 조회)
     const allPrices = await db
       .select()
       .from(stockPrices)
       .where(inArray(stockPrices.stockCode, codes));
 
-    const priceMap = new Map(
+    const priceMap = new Map<string, PriceForBalance>(
       allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
     );
 
-    let totalBalance = 0;
-    for (const h of holdings) {
-      const key = `${h.stockCode}:${h.country}`;
-      const p = priceMap.get(key);
-      const qty = Number(h.quantity);
-
-      if (p?.krwPrice) {
-        // 실시간 KRW 환산가
-        totalBalance += Number(p.krwPrice) * qty;
-      } else if (p?.currentPrice && h.currency === "USD" && p.exchangeRate) {
-        // krwPrice 없을 때: currentPrice × exchangeRate
-        totalBalance +=
-          Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
-      } else {
-        // 최종 fallback: 평단가 기준 (KRW: 그대로, USD: 환율 없으면 그대로)
-        totalBalance += Number(h.avgPrice) * qty;
-      }
-    }
+    const totalBalance = calcTotalBalance(holdings, priceMap);
 
     // 5. assets.balance 업데이트
     await db
@@ -183,7 +226,6 @@ const buyMoreSchema = z.object({
   buyPrice: z.number().positive("매수가는 0 초과여야 합니다."),
   investmentKRW: z.number().positive("투자금액을 입력하세요."),
   purchaseDate: z.string(),
-  categoryId: z.number().int().positive().optional(),
 });
 
 export type BuyMoreInput = z.infer<typeof buyMoreSchema>;
@@ -202,14 +244,8 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         };
       }
 
-      const {
-        holdingId,
-        quantity,
-        buyPrice,
-        investmentKRW,
-        purchaseDate,
-        categoryId,
-      } = parsed.data;
+      const { holdingId, quantity, buyPrice, investmentKRW, purchaseDate } =
+        parsed.data;
 
       // 기존 보유내역 조회
       const [existing] = await db
@@ -259,11 +295,25 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         })
         .returning();
 
-      // ③ transaction (SAVING) 생성 → 달력에 표시
+      // ③ "투자" 기본 카테고리 자동 조회
+      const [investCategory] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(
+          and(
+            eq(categories.name, "투자"),
+            eq(categories.type, "SAVING"),
+            eq(categories.isDefault, true),
+            isNull(categories.userId),
+          ),
+        )
+        .limit(1);
+
+      // ④ transaction (SAVING) 생성 → 달력에 표시
       await db.insert(transactions).values({
         userId,
         type: "SAVING",
-        categoryId: categoryId ?? null,
+        categoryId: investCategory?.id ?? null,
         amount: investmentKRW.toString(),
         date: purchaseDate,
         memo,
@@ -350,6 +400,28 @@ export async function createStockHolding(data: StockHoldingInput) {
         return { success: false, error: "STOCK 타입 자산 계좌를 선택하세요." };
       }
 
+      // 동일 계좌에 같은 종목 중복 등록 방지
+      const duplicate = await db
+        .select({ id: stockHoldings.id })
+        .from(stockHoldings)
+        .where(
+          and(
+            eq(stockHoldings.userId, userId),
+            eq(stockHoldings.assetId, assetId),
+            eq(stockHoldings.stockCode, stockCode),
+            eq(stockHoldings.country, country),
+          ),
+        )
+        .limit(1);
+
+      if (duplicate[0]) {
+        return {
+          success: false,
+          error:
+            "이미 같은 계좌에 동일한 종목이 등록되어 있습니다. 추매 기능을 이용하세요.",
+        };
+      }
+
       const [result] = await db
         .insert(stockHoldings)
         .values({
@@ -371,9 +443,8 @@ export async function createStockHolding(data: StockHoldingInput) {
 
       // 가계부에 저축으로 기록 (체크한 경우)
       if (parsed.data.recordAsSaving && parsed.data.investmentKRW) {
-        const txDate =
-          parsed.data.purchaseDate ?? new Date().toISOString().split("T")[0];
-        const memo = `주식 매수: ${stockName}`;
+        const txDate = parsed.data.purchaseDate ?? getTodayKST();
+        const txMemo = `주식 매수: ${stockName}`; // memo(보유내역용)와 구분
 
         // ① assetTransaction (DEPOSIT) 생성
         const [assetTx] = await db
@@ -384,18 +455,33 @@ export async function createStockHolding(data: StockHoldingInput) {
             type: "DEPOSIT",
             amount: parsed.data.investmentKRW.toString(),
             date: txDate,
-            memo,
+            memo: txMemo,
             isFixed: false,
           })
           .returning();
 
-        // ② transaction (SAVING) 생성 + assetTransaction 연결
+        // ② "투자" 기본 카테고리 자동 조회
+        const [investCategory] = await db
+          .select({ id: categories.id })
+          .from(categories)
+          .where(
+            and(
+              eq(categories.name, "투자"),
+              eq(categories.type, "SAVING"),
+              eq(categories.isDefault, true),
+              isNull(categories.userId),
+            ),
+          )
+          .limit(1);
+
+        // ③ transaction (SAVING) 생성 + assetTransaction 연결
         await db.insert(transactions).values({
           userId,
           type: "SAVING",
+          categoryId: investCategory?.id ?? null,
           amount: parsed.data.investmentKRW.toString(),
           date: txDate,
-          memo,
+          memo: txMemo,
           method: null,
           isFixed: false,
           linkedAssetTransactionId: assetTx.id,
@@ -572,7 +658,7 @@ export async function getStockPricesForAsset(assetId: number) {
       if (holdings.length === 0) return { success: true, data: [] };
 
       // 2. 오늘 날짜 캐시 확인
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayKST();
       const codes = holdings.map((h) => h.stockCode);
 
       const cached = await db
@@ -655,51 +741,9 @@ export async function getStockPricesForAsset(assetId: number) {
         .from(stockPrices)
         .where(inArray(stockPrices.stockCode, codes));
 
-      // 5. 평가금액 합산 → assets.balance 자동 갱신 (페이지 접속 시마다)
-      try {
-        const priceMap = new Map(
-          allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
-        );
-
-        let totalBalance = 0;
-        for (const h of holdings) {
-          const key = `${h.stockCode}:${h.country}`;
-          const p = priceMap.get(key);
-          const qty = Number(h.quantity);
-
-          if (p?.krwPrice) {
-            totalBalance += Number(p.krwPrice) * qty;
-          } else if (
-            p?.currentPrice &&
-            h.currency === "USD" &&
-            p.exchangeRate
-          ) {
-            totalBalance +=
-              Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
-          } else {
-            // fallback: 평단가 기준
-            totalBalance += Number(h.avgPrice) * qty;
-          }
-        }
-
-        await db
-          .update(assets)
-          .set({
-            balance: Math.round(totalBalance).toString(),
-            updatedAt: new Date(),
-          })
-          .where(eq(assets.id, assetId));
-
-        console.log(
-          `[getStockPricesForAsset] assetId=${assetId} balance=${Math.round(totalBalance)} 갱신 완료`,
-        );
-      } catch (balanceErr) {
-        // balance 갱신 실패해도 시세 조회는 성공으로 반환
-        console.error(
-          "[getStockPricesForAsset] balance 갱신 실패:",
-          balanceErr,
-        );
-      }
+      // 5. balance 갱신은 syncAssetBalance에 위임 (중복 로직 제거)
+      //    직전에 upsertStockPrices로 오늘 시세를 저장했으므로 캐시 히트 → KIS API 이중 호출 없음
+      await syncAssetBalance(assetId, userId);
 
       return { success: true, data: allPrices };
     } catch (err) {
