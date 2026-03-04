@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssetHeader } from "./asset-header";
 import { AssetTransactionList } from "./asset-transaction-list";
 import { AssetTransactionFormSheet } from "./asset-transaction-form-sheet";
@@ -112,20 +113,28 @@ export function AssetDetailClient({
 
       {/* STOCK 타입: 주식 보유내역 */}
       {asset.type === "STOCK" ? (
-        <>
-          <StockHoldingsList
-            assetId={asset.id}
-            holdings={stockHoldings}
-            prices={stockPrices}
-            cashBalance={cashBalance}
-          />
-          <AssetTransactionList
-            transactions={transactions}
-            currentAssetId={asset.id}
-            onEdit={handleEditTransaction}
-            onDelete={handleDeleteTransaction}
-          />
-        </>
+        <Tabs defaultValue="holdings" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="holdings">보유 종목</TabsTrigger>
+            <TabsTrigger value="transactions">거래 내역</TabsTrigger>
+          </TabsList>
+          <TabsContent value="holdings" className="mt-4">
+            <StockHoldingsList
+              assetId={asset.id}
+              holdings={stockHoldings}
+              prices={stockPrices}
+              cashBalance={cashBalance}
+            />
+          </TabsContent>
+          <TabsContent value="transactions" className="mt-4">
+            <AssetTransactionList
+              transactions={transactions}
+              currentAssetId={asset.id}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+            />
+          </TabsContent>
+        </Tabs>
       ) : (
         <AssetTransactionList
           transactions={transactions}
