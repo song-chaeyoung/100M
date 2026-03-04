@@ -99,11 +99,13 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
         const [toAssetInfo] = await db
           .select({ type: assets.type })
           .from(assets)
-          .where(eq(assets.id, parsed.data.toAssetId));
+          .where(eq(assets.id, parsed.data.toAssetId))
+          .limit(1);
         const [fromAssetInfo] = await db
           .select({ type: assets.type })
           .from(assets)
-          .where(eq(assets.id, parsed.data.assetId));
+          .where(eq(assets.id, parsed.data.assetId))
+          .limit(1);
 
         if (toAssetInfo?.type === "STOCK") {
           // 실제 목적지가 주식계좌 → cashBalance 증가

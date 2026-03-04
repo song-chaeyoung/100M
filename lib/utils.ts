@@ -38,6 +38,16 @@ export const formatAmount = (value: string) => {
 };
 
 /**
+ * 콤마가 포함된 문자열을 숫자로 파싱
+ * @param value 콤마가 포함된 문자열 (예: "1,000")
+ * @returns 파싱된 숫자
+ */
+export const parseFormattedNumber = (value: string) => {
+  if (!value) return 0;
+  return Number(value.replace(/,/g, ""));
+};
+
+/**
  * 두 월 사이의 모든 월을 배열로 반환
  * @param startMonth 시작월 (YYYY-MM 형식)
  * @param endMonth 종료월 (YYYY-MM 형식)
@@ -54,7 +64,10 @@ export function toScheduledDate(month: string, day: number): string {
   return `${month}-${String(clampedDay).padStart(2, "0")}`;
 }
 
-export function getMonthsBetween(startMonth: string, endMonth: string): string[] {
+export function getMonthsBetween(
+  startMonth: string,
+  endMonth: string,
+): string[] {
   const months: string[] = [];
   let current = dayjs(startMonth).startOf("month");
   const end = dayjs(endMonth).startOf("month");

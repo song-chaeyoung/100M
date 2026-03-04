@@ -92,3 +92,97 @@ export const stockPriceResponseSchema = z.object({
 
 export type StockHoldingResponse = z.infer<typeof stockHoldingResponseSchema>;
 export type StockPriceResponse = z.infer<typeof stockPriceResponseSchema>;
+
+// ─────────────────────────────────────────────
+// 보유내역 Server Actions 스키마
+// ─────────────────────────────────────────────
+
+export const createStockHoldingSchema = z.object({
+  assetId: z.number().int().positive("자산 계좌를 선택하세요."),
+  stockCode: z.string().min(1, "종목 코드를 입력하세요."),
+  stockName: z.string().min(1, "종목명을 입력하세요."),
+  country: z.enum(["KR", "US"]).default("KR"),
+  market: z.string().default("KOSPI"),
+  quantity: z.number().positive("수량은 0보다 커야 합니다."),
+  avgPrice: z.number().positive("평단가는 0 초과여야 합니다.").multipleOf(0.01),
+  currency: z.enum(["KRW", "USD"]).default("KRW"),
+  memo: z.string().optional(),
+  // 가계부 저축 연동
+  recordAsSaving: z.boolean().default(false),
+  investmentKRW: z.number().positive().optional(),
+  purchaseDate: z.string().optional(),
+});
+export type CreateStockHoldingInput = z.infer<typeof createStockHoldingSchema>;
+
+export const updateStockHoldingSchema = createStockHoldingSchema.partial();
+export type UpdateStockHoldingInput = z.infer<typeof updateStockHoldingSchema>;
+
+export const buyMoreStockHoldingSchema = z.object({
+  holdingId: z.number().int().positive(),
+  quantity: z.number().positive("수량은 0보다 커야 합니다."),
+  buyPrice: z.number().positive("매수가는 0 초과여야 합니다."),
+  investmentKRW: z.number().positive("투자금액을 입력하세요."),
+  purchaseDate: z.string(),
+});
+export type BuyMoreStockHoldingInput = z.infer<
+  typeof buyMoreStockHoldingSchema
+>;
+
+export const sellPartialStockHoldingSchema = z.object({
+  holdingId: z.number().int().positive(),
+  quantity: z.number().positive("매도 수량은 0보다 커야 합니다."),
+  sellPrice: z.number().positive("매도가는 0 초과여야 합니다."),
+  proceedsKRW: z.number().positive("매도 대금을 입력하세요."),
+  sellDate: z.string(),
+});
+export type SellPartialStockHoldingInput = z.infer<
+  typeof sellPartialStockHoldingSchema
+>;
+
+// ─────────────────────────────────────────────
+// 기타 폼 스키마 (추매, 분할매도)
+// ─────────────────────────────────────────────
+
+export const buyMoreFormSchema = z.object({
+  quantity: z
+    .string()
+    .min(1, "수량을 입력하세요.")
+    .refine(
+      (v) => {
+        const n = Number(v.replace(/,/g, ""));
+        return !isNaN(n) && n > 0;
+      },
+      { message: "수량은 0보다 커야 합니다." },
+    ),
+  buyPrice: z
+    .string()
+    .min(1, "매수가를 입력하세요.")
+    .refine((v) => Number(v.replace(/,/g, "")) > 0, {
+      message: "매수가는 0 초과여야 합니다.",
+    }),
+  investmentKRW: z.string().min(1, "투자금액을 입력하세요."),
+  purchaseDate: z.date(),
+});
+export type BuyMoreFormValues = z.infer<typeof buyMoreFormSchema>;
+
+export const sellPartialFormSchema = z.object({
+  quantity: z
+    .string()
+    .min(1, "수량을 입력하세요.")
+    .refine(
+      (v) => {
+        const n = Number(v.replace(/,/g, ""));
+        return !isNaN(n) && n > 0;
+      },
+      { message: "수량은 0보다 커야 합니다." },
+    ),
+  sellPrice: z
+    .string()
+    .min(1, "매도가를 입력하세요.")
+    .refine((v) => Number(v.replace(/,/g, "")) > 0, {
+      message: "매도가는 0 초과여야 합니다.",
+    }),
+  proceedsKRW: z.string().min(1, "매도 대금을 입력하세요."),
+  sellDate: z.date(),
+});
+export type SellPartialFormValues = z.infer<typeof sellPartialFormSchema>;

@@ -14,6 +14,16 @@ import { eq, and, inArray, sql, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
+  type CreateStockHoldingInput,
+  type UpdateStockHoldingInput,
+  type BuyMoreStockHoldingInput,
+  type SellPartialStockHoldingInput,
+  createStockHoldingSchema,
+  updateStockHoldingSchema,
+  buyMoreStockHoldingSchema,
+  sellPartialStockHoldingSchema,
+} from "@/lib/validations/stock";
+import {
   fetchKRStockPricesWithQueue,
   fetchUSStockPricesWithQueue,
 } from "@/lib/kis-stocks";
@@ -235,23 +245,13 @@ export async function syncAssetBalance(
 // 추매 (추가 매수)
 // ─────────────────────────────────────────────
 
-const buyMoreSchema = z.object({
-  holdingId: z.number().int().positive(),
-  quantity: z.number().positive("수량은 0보다 커야 합니다."),
-  buyPrice: z.number().positive("매수가는 0 초과여야 합니다."),
-  investmentKRW: z.number().positive("투자금액을 입력하세요."),
-  purchaseDate: z.string(),
-});
-
-export type BuyMoreInput = z.infer<typeof buyMoreSchema>;
-
 /**
  * 추매: 기존 보유 종목에 수량 추가 + 평단가 재계산 + 달력 거래 생성
  */
-export async function buyMoreStockHolding(data: BuyMoreInput) {
+export async function buyMoreStockHolding(data: BuyMoreStockHoldingInput) {
   return withAuth(async (userId) => {
     try {
-      const parsed = buyMoreSchema.safeParse(data);
+      const parsed = buyMoreStockHoldingSchema.safeParse(data);
       if (!parsed.success) {
         return {
           success: false,
@@ -375,25 +375,17 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
 // 분할매도
 // ─────────────────────────────────────────────
 
-const sellPartialSchema = z.object({
-  holdingId: z.number().int().positive(),
-  quantity: z.number().positive("매도 수량은 0보다 커야 합니다."),
-  sellPrice: z.number().positive("매도가는 0 초과여야 합니다."),
-  proceedsKRW: z.number().positive("매도 대금을 입력하세요."),
-  sellDate: z.string(),
-});
-
-export type SellPartialInput = z.infer<typeof sellPartialSchema>;
-
 /**
  * 분할매도: 보유 수량 차감 (전량이면 삭제) + 달력 거래 생성
  * - 평단가는 변경하지 않음 (남은 주식 손익 왜곡 방지)
  * - AssetTransaction(WITHDRAW) + Transaction(INCOME) 생성
  */
-export async function sellPartialStockHolding(data: SellPartialInput) {
+export async function sellPartialStockHolding(
+  data: SellPartialStockHoldingInput,
+) {
   return withAuth(async (userId) => {
     try {
-      const parsed = sellPartialSchema.safeParse(data);
+      const parsed = sellPartialStockHoldingSchema.safeParse(data);
       if (!parsed.success) {
         return {
           success: false,
@@ -509,38 +501,16 @@ export async function sellPartialStockHolding(data: SellPartialInput) {
 }
 
 // ─────────────────────────────────────────────
-// 유효성 검사
-// ─────────────────────────────────────────────
-
-const stockHoldingSchema = z.object({
-  assetId: z.number().int().positive("자산 계좌를 선택하세요."),
-  stockCode: z.string().min(1, "종목 코드를 입력하세요."),
-  stockName: z.string().min(1, "종목명을 입력하세요."),
-  country: z.enum(["KR", "US"]).default("KR"),
-  market: z.string().default("KOSPI"),
-  quantity: z.number().positive("수량은 0보다 커야 합니다."),
-  avgPrice: z.number().positive("평단가는 0 초과여야 합니다.").multipleOf(0.01),
-  currency: z.enum(["KRW", "USD"]).default("KRW"),
-  memo: z.string().optional(),
-  // 가계부 저축 연동
-  recordAsSaving: z.boolean().default(false),
-  investmentKRW: z.number().positive().optional(),
-  purchaseDate: z.string().optional(),
-});
-
-export type StockHoldingInput = z.infer<typeof stockHoldingSchema>;
-
-// ─────────────────────────────────────────────
 // 보유내역 CRUD
 // ─────────────────────────────────────────────
 
 /**
  * 보유내역 생성
  */
-export async function createStockHolding(data: StockHoldingInput) {
+export async function createStockHolding(data: CreateStockHoldingInput) {
   return withAuth(async (userId) => {
     try {
-      const parsed = stockHoldingSchema.safeParse(data);
+      const parsed = createStockHoldingSchema.safeParse(data);
       if (!parsed.success) {
         return {
           success: false,
@@ -699,7 +669,7 @@ export async function createStockHolding(data: StockHoldingInput) {
  */
 export async function updateStockHolding(
   id: number,
-  data: Partial<StockHoldingInput>,
+  data: UpdateStockHoldingInput,
 ) {
   return withAuth(async (userId) => {
     try {
@@ -713,7 +683,7 @@ export async function updateStockHolding(
         return { success: false, error: "보유내역을 찾을 수 없습니다." };
       }
 
-      const parsed = stockHoldingSchema.partial().safeParse(data);
+      const parsed = updateStockHoldingSchema.safeParse(data);
       if (!parsed.success) {
         return {
           success: false,

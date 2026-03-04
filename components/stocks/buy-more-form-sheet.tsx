@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import dayjs from "dayjs";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -16,38 +15,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn, formatAmount } from "@/lib/utils";
+import { cn, formatAmount, parseFormattedNumber } from "@/lib/utils";
 import { formatPrice } from "@/lib/stocks/format";
 import { buyMoreStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
-import type { StockHoldingResponse } from "@/lib/validations/stock";
-
-// ─────────────────────────────────────────────
-// 폼 스키마
-// ─────────────────────────────────────────────
-
-const buyMoreFormSchema = z.object({
-  quantity: z
-    .string()
-    .min(1, "수량을 입력하세요.")
-    .refine(
-      (v) => {
-        const n = Number(v.replace(/,/g, ""));
-        return !isNaN(n) && n > 0;
-      },
-      { message: "수량은 0보다 커야 합니다." },
-    ),
-  buyPrice: z
-    .string()
-    .min(1, "매수가를 입력하세요.")
-    .refine((v) => Number(v.replace(/,/g, "")) > 0, {
-      message: "매수가는 0 초과여야 합니다.",
-    }),
-  investmentKRW: z.string().min(1, "투자금액을 입력하세요."),
-  purchaseDate: z.date(),
-});
-
-type BuyMoreFormValues = z.infer<typeof buyMoreFormSchema>;
+import {
+  type StockHoldingResponse,
+  buyMoreFormSchema,
+  type BuyMoreFormValues,
+} from "@/lib/validations/stock";
 
 // ─────────────────────────────────────────────
 // Props
@@ -90,8 +66,8 @@ export function BuyMoreFormSheet({
   // KR 주식: 수량 × 매수가 자동계산
   useEffect(() => {
     if (country !== "KR") return;
-    const qty = Number(quantity.replace(/,/g, ""));
-    const price = Number(buyPrice.replace(/,/g, ""));
+    const qty = parseFormattedNumber(quantity);
+    const price = parseFormattedNumber(buyPrice);
     if (qty > 0 && price > 0) {
       setValue("investmentKRW", formatAmount(String(Math.round(qty * price))));
     } else {
@@ -117,9 +93,9 @@ export function BuyMoreFormSheet({
     try {
       const result = await buyMoreStockHolding({
         holdingId: holding.id,
-        quantity: Number(data.quantity.replace(/,/g, "")),
-        buyPrice: Number(data.buyPrice.replace(/,/g, "")),
-        investmentKRW: Number(data.investmentKRW.replace(/,/g, "")),
+        quantity: parseFormattedNumber(data.quantity),
+        buyPrice: parseFormattedNumber(data.buyPrice),
+        investmentKRW: parseFormattedNumber(data.investmentKRW),
         purchaseDate: dayjs(data.purchaseDate).format("YYYY-MM-DD"),
       });
 
@@ -310,8 +286,8 @@ export function BuyMoreFormSheet({
               추매 후 예상
             </p>
             {(() => {
-              const qty = Number(quantity.replace(/,/g, ""));
-              const price = Number(buyPrice.replace(/,/g, ""));
+              const qty = parseFormattedNumber(quantity);
+              const price = parseFormattedNumber(buyPrice);
               const oldQty = holding.quantity;
               const oldAvg = Number(holding.avgPrice);
               if (qty > 0 && price > 0) {

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { StockSearchInput } from "@/components/stocks/stock-search-input";
-import { formatAmount } from "@/lib/utils";
+import { formatAmount, parseFormattedNumber } from "@/lib/utils";
 import { createStockHolding, updateStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
 import {
@@ -78,8 +78,8 @@ export function StockHoldingFormSheet({
     if (isEditMode) return; // 수정 모드에서는 자동계산 안 함
     if (country !== "KR") return; // 미국 주식은 직접 입력
 
-    const qty = Number(quantity.replace(/,/g, ""));
-    const price = Number(avgPrice.replace(/,/g, ""));
+    const qty = parseFormattedNumber(quantity);
+    const price = parseFormattedNumber(avgPrice);
     if (qty > 0 && price > 0) {
       setValue("investmentKRW", formatAmount(String(Math.round(qty * price))));
     } else {
@@ -146,15 +146,15 @@ export function StockHoldingFormSheet({
         stockName: data.stockName,
         country: data.country,
         market: data.market,
-        quantity: Number(data.quantity.replace(/,/g, "")),
-        avgPrice: Number(data.avgPrice.replace(/,/g, "")),
+        quantity: parseFormattedNumber(data.quantity),
+        avgPrice: parseFormattedNumber(data.avgPrice),
         currency: data.country === "US" ? ("USD" as const) : ("KRW" as const),
         memo: data.memo || undefined,
         // 가계부 저축 연동
         recordAsSaving: data.recordAsSaving,
         investmentKRW:
           data.recordAsSaving && data.investmentKRW
-            ? Number(data.investmentKRW.replace(/,/g, ""))
+            ? parseFormattedNumber(data.investmentKRW)
             : undefined,
         purchaseDate: data.purchaseDate,
       };

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import dayjs from "dayjs";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -16,38 +15,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn, formatAmount } from "@/lib/utils";
+import { cn, formatAmount, parseFormattedNumber } from "@/lib/utils";
 import { formatPrice, formatKRW } from "@/lib/stocks/format";
 import { sellPartialStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
-import type { StockHoldingResponse } from "@/lib/validations/stock";
-
-// ─────────────────────────────────────────────
-// 폼 스키마
-// ─────────────────────────────────────────────
-
-const sellPartialFormSchema = z.object({
-  quantity: z
-    .string()
-    .min(1, "수량을 입력하세요.")
-    .refine(
-      (v) => {
-        const n = Number(v.replace(/,/g, ""));
-        return !isNaN(n) && n > 0;
-      },
-      { message: "수량은 0보다 커야 합니다." },
-    ),
-  sellPrice: z
-    .string()
-    .min(1, "매도가를 입력하세요.")
-    .refine((v) => Number(v.replace(/,/g, "")) > 0, {
-      message: "매도가는 0 초과여야 합니다.",
-    }),
-  proceedsKRW: z.string().min(1, "매도 대금을 입력하세요."),
-  sellDate: z.date(),
-});
-
-type SellPartialFormValues = z.infer<typeof sellPartialFormSchema>;
+import {
+  type StockHoldingResponse,
+  sellPartialFormSchema,
+  type SellPartialFormValues,
+} from "@/lib/validations/stock";
 
 // ─────────────────────────────────────────────
 // Props
@@ -90,8 +66,8 @@ export function SellPartialFormSheet({
   // KR 주식: 수량 × 매도가 자동계산
   useEffect(() => {
     if (country !== "KR") return;
-    const qty = Number(quantity.replace(/,/g, ""));
-    const price = Number(sellPrice.replace(/,/g, ""));
+    const qty = parseFormattedNumber(quantity);
+    const price = parseFormattedNumber(sellPrice);
     if (qty > 0 && price > 0) {
       setValue("proceedsKRW", formatAmount(String(Math.round(qty * price))));
     } else {
@@ -114,7 +90,7 @@ export function SellPartialFormSheet({
   const onSubmit = async (data: SellPartialFormValues) => {
     if (!holding) return;
 
-    const sellQty = Number(data.quantity.replace(/,/g, ""));
+    const sellQty = parseFormattedNumber(data.quantity);
     const maxQty = holding.quantity;
 
     // 보유 수량 초과 검증 (클라이언트)
@@ -127,8 +103,8 @@ export function SellPartialFormSheet({
       const result = await sellPartialStockHolding({
         holdingId: holding.id,
         quantity: sellQty,
-        sellPrice: Number(data.sellPrice.replace(/,/g, "")),
-        proceedsKRW: Number(data.proceedsKRW.replace(/,/g, "")),
+        sellPrice: parseFormattedNumber(data.sellPrice),
+        proceedsKRW: parseFormattedNumber(data.proceedsKRW),
         sellDate: dayjs(data.sellDate).format("YYYY-MM-DD"),
       });
 
@@ -152,8 +128,8 @@ export function SellPartialFormSheet({
   if (!holding) return null;
 
   // 미리보기 계산
-  const previewQty = Number(quantity.replace(/,/g, ""));
-  const previewPrice = Number(sellPrice.replace(/,/g, ""));
+  const previewQty = parseFormattedNumber(quantity);
+  const previewPrice = parseFormattedNumber(sellPrice);
   const avgPrice = Number(holding.avgPrice);
   const showPreview =
     previewQty > 0 && previewPrice > 0 && previewQty <= holding.quantity;
