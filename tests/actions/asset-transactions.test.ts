@@ -206,7 +206,11 @@ describe("createAssetTransaction", () => {
     mockDb.limit
       .mockResolvedValueOnce([{ id: 1, userId: "user-1" }])
       // 두 번째 limit: 입금 자산 존재
-      .mockResolvedValueOnce([{ id: 2, userId: "user-1" }]);
+      .mockResolvedValueOnce([{ id: 2, userId: "user-1" }])
+      // 세 번째 limit: toAssetInfo 조회
+      .mockResolvedValueOnce([{ type: "CASH" }])
+      // 네 번째 limit: fromAssetInfo 조회
+      .mockResolvedValueOnce([{ type: "CASH" }]);
 
     // batch: TRANSFER는 3개 쿼리 [insert, fromBalance, toBalance]
     mockDb.batch.mockResolvedValueOnce([
