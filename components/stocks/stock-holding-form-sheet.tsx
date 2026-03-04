@@ -7,6 +7,7 @@ import { BottomSheet } from "@/components/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { StockSearchInput } from "@/components/stocks/stock-search-input";
 import { formatAmount } from "@/lib/utils";
 import { createStockHolding, updateStockHolding } from "@/app/actions/stocks";
@@ -24,6 +25,8 @@ interface StockHoldingFormSheetProps {
   assetId: number;
   editingHolding?: StockHoldingResponse | null;
 }
+
+const today = () => new Date().toISOString().split("T")[0];
 
 export function StockHoldingFormSheet({
   open,
@@ -44,6 +47,9 @@ export function StockHoldingFormSheet({
       quantity: "",
       avgPrice: "",
       memo: "",
+      recordAsSaving: true,
+      investmentKRW: "",
+      purchaseDate: today(),
     },
   });
 
@@ -52,6 +58,9 @@ export function StockHoldingFormSheet({
 
   const stockCode = watch("stockCode");
   const country = watch("country");
+  const quantity = watch("quantity");
+  const avgPrice = watch("avgPrice");
+  const recordAsSaving = watch("recordAsSaving");
 
   // 선택된 종목을 StockSearchResult 형태로 변환 (표시용)
   const selectedStock: StockSearchResult | null = stockCode
@@ -63,6 +72,20 @@ export function StockHoldingFormSheet({
         country: watch("country"),
       }
     : null;
+
+  // KR 주식: 수량 × 평단가 → 투자금액 자동계산
+  useEffect(() => {
+    if (isEditMode) return; // 수정 모드에서는 자동계산 안 함
+    if (country !== "KR") return; // 미국 주식은 직접 입력
+
+    const qty = Number(quantity.replace(/,/g, ""));
+    const price = Number(avgPrice.replace(/,/g, ""));
+    if (qty > 0 && price > 0) {
+      setValue("investmentKRW", formatAmount(String(Math.round(qty * price))));
+    } else {
+      setValue("investmentKRW", "");
+    }
+  }, [quantity, avgPrice, country, isEditMode, setValue]);
 
   useEffect(() => {
     if (open) {
@@ -76,6 +99,9 @@ export function StockHoldingFormSheet({
           quantity: String(editingHolding.quantity),
           avgPrice: editingHolding.avgPrice,
           memo: editingHolding.memo ?? "",
+          recordAsSaving: false, // 수정 모드에서는 가계부 연동 기본 off
+          investmentKRW: "",
+          purchaseDate: today(),
         });
       } else {
         reset({
@@ -87,6 +113,9 @@ export function StockHoldingFormSheet({
           quantity: "",
           avgPrice: "",
           memo: "",
+          recordAsSaving: true,
+          investmentKRW: "",
+          purchaseDate: today(),
         });
       }
     }
@@ -98,11 +127,14 @@ export function StockHoldingFormSheet({
       setValue("stockName", stock.stockName, { shouldDirty: true });
       setValue("country", stock.country as "KR" | "US", { shouldDirty: true });
       setValue("market", stock.market, { shouldDirty: true });
+      // 국가 바뀌면 투자금액 초기화
+      setValue("investmentKRW", "");
     } else {
       setValue("stockCode", "", { shouldDirty: true });
       setValue("stockName", "", { shouldDirty: true });
       setValue("country", "KR", { shouldDirty: true });
       setValue("market", "KOSPI", { shouldDirty: true });
+      setValue("investmentKRW", "");
     }
   };
 
@@ -113,11 +145,18 @@ export function StockHoldingFormSheet({
         stockCode: data.stockCode,
         stockName: data.stockName,
         country: data.country,
-        market: data.market, // KOSPI / KOSDAQ / NYSE / NASDAQ / AMEX
+        market: data.market,
         quantity: Number(data.quantity.replace(/,/g, "")),
         avgPrice: Number(data.avgPrice.replace(/,/g, "")),
         currency: data.country === "US" ? ("USD" as const) : ("KRW" as const),
         memo: data.memo || undefined,
+        // 가계부 저축 연동
+        recordAsSaving: data.recordAsSaving,
+        investmentKRW:
+          data.recordAsSaving && data.investmentKRW
+            ? Number(data.investmentKRW.replace(/,/g, ""))
+            : undefined,
+        purchaseDate: data.purchaseDate,
       };
 
       let result;
@@ -193,10 +232,8 @@ export function StockHoldingFormSheet({
                   onChange={(e) => {
                     const raw = e.target.value;
                     if (country === "US") {
-                      // 소수점: 숫자와 소수점만 허용
                       if (/^\d*\.?\d{0,6}$/.test(raw)) field.onChange(raw);
                     } else {
-                      // 정수: 기존 formatAmount 사용
                       field.onChange(formatAmount(raw));
                     }
                   }}
@@ -256,6 +293,83 @@ export function StockHoldingFormSheet({
             )}
           />
         </div>
+
+        {/* 가계부 저축 연동 (신규 등록 시만) */}
+        {!isEditMode && (
+          <div className="rounded-xl border bg-muted/40 p-4 space-y-3">
+            <Controller
+              name="recordAsSaving"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-center gap-2.5">
+                  <Switch
+                    id="recordAsSaving"
+                    checked={field.value ?? true}
+                    onCheckedChange={field.onChange}
+                  />
+                  <Label
+                    htmlFor="recordAsSaving"
+                    className="cursor-pointer font-medium"
+                  >
+                    가계부에 저축으로 기록
+                  </Label>
+                </div>
+              )}
+            />
+
+            {recordAsSaving && (
+              <div className="space-y-3 pt-1">
+                {/* 투자금액 (원화) */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-muted-foreground">
+                    투자 금액 (원화)
+                    {country === "US" && (
+                      <span className="ml-1 text-xs">· 직접 입력해주세요</span>
+                    )}
+                  </Label>
+                  <Controller
+                    name="investmentKRW"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(formatAmount(e.target.value))
+                          }
+                          placeholder={
+                            country === "KR"
+                              ? "수량 × 평단가 자동계산"
+                              : "원화 환산 금액 입력"
+                          }
+                          className="text-right pr-8"
+                          readOnly={country === "KR"} // KR은 자동계산
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          원
+                        </span>
+                      </div>
+                    )}
+                  />
+                </div>
+
+                {/* 거래 날짜 */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-muted-foreground">
+                    거래 날짜
+                  </Label>
+                  <Controller
+                    name="purchaseDate"
+                    control={control}
+                    render={({ field }) => <Input type="date" {...field} />}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 저장 버튼 */}
         <div className="pt-2">

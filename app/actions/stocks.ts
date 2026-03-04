@@ -2,7 +2,13 @@
 
 import { withAuth } from "@/lib/with-auth";
 import { db } from "@/db";
-import { stockHoldings, stockPrices, assets } from "@/db/schema";
+import {
+  stockHoldings,
+  stockPrices,
+  assets,
+  assetTransactions,
+  transactions,
+} from "@/db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -168,6 +174,118 @@ async function syncAssetBalance(
 }
 
 // ─────────────────────────────────────────────
+// 추매 (추가 매수)
+// ─────────────────────────────────────────────
+
+const buyMoreSchema = z.object({
+  holdingId: z.number().int().positive(),
+  quantity: z.number().positive("수량은 0보다 커야 합니다."),
+  buyPrice: z.number().positive("매수가는 0 초과여야 합니다."),
+  investmentKRW: z.number().positive("투자금액을 입력하세요."),
+  purchaseDate: z.string(),
+  categoryId: z.number().int().positive().optional(),
+});
+
+export type BuyMoreInput = z.infer<typeof buyMoreSchema>;
+
+/**
+ * 추매: 기존 보유 종목에 수량 추가 + 평단가 재계산 + 달력 거래 생성
+ */
+export async function buyMoreStockHolding(data: BuyMoreInput) {
+  return withAuth(async (userId) => {
+    try {
+      const parsed = buyMoreSchema.safeParse(data);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: z.flattenError(parsed.error).fieldErrors,
+        };
+      }
+
+      const {
+        holdingId,
+        quantity,
+        buyPrice,
+        investmentKRW,
+        purchaseDate,
+        categoryId,
+      } = parsed.data;
+
+      // 기존 보유내역 조회
+      const [existing] = await db
+        .select()
+        .from(stockHoldings)
+        .where(
+          and(
+            eq(stockHoldings.id, holdingId),
+            eq(stockHoldings.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) {
+        return { success: false, error: "보유내역이 존재하지 않습니다." };
+      }
+
+      // 가중평균 평단가 계산
+      // new_avg = (old_qty × old_avg + new_qty × buy_price) / (old_qty + new_qty)
+      const oldQty = Number(existing.quantity);
+      const oldAvg = Number(existing.avgPrice);
+      const newQty = oldQty + quantity;
+      const newAvg = (oldQty * oldAvg + quantity * buyPrice) / newQty;
+
+      // ① 보유내역 업데이트
+      await db
+        .update(stockHoldings)
+        .set({
+          quantity: newQty.toString(),
+          avgPrice: newAvg.toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(stockHoldings.id, holdingId));
+
+      // ② assetTransaction (DEPOSIT) 생성
+      const memo = `주식 추매: ${existing.stockName} ${quantity}주`;
+      const [assetTx] = await db
+        .insert(assetTransactions)
+        .values({
+          userId,
+          assetId: existing.assetId,
+          type: "DEPOSIT",
+          amount: investmentKRW.toString(),
+          date: purchaseDate,
+          memo,
+          isFixed: false,
+        })
+        .returning();
+
+      // ③ transaction (SAVING) 생성 → 달력에 표시
+      await db.insert(transactions).values({
+        userId,
+        type: "SAVING",
+        categoryId: categoryId ?? null,
+        amount: investmentKRW.toString(),
+        date: purchaseDate,
+        memo,
+        method: null,
+        isFixed: false,
+        linkedAssetTransactionId: assetTx.id,
+      });
+
+      // ④ 잔액 동기화
+      await syncAssetBalance(existing.assetId, userId);
+
+      revalidatePath("/assets");
+      revalidatePath("/calendar");
+      return { success: true };
+    } catch (err) {
+      console.error("buyMoreStockHolding error:", err);
+      return { success: false, error: "추매에 실패했습니다." };
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
 // 유효성 검사
 // ─────────────────────────────────────────────
 
@@ -176,11 +294,15 @@ const stockHoldingSchema = z.object({
   stockCode: z.string().min(1, "종목 코드를 입력하세요."),
   stockName: z.string().min(1, "종목명을 입력하세요."),
   country: z.enum(["KR", "US"]).default("KR"),
-  market: z.string().default("KOSPI"), // KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX
+  market: z.string().default("KOSPI"),
   quantity: z.number().positive("수량은 0보다 커야 합니다."),
   avgPrice: z.number().positive("평단가는 0 초과여야 합니다.").multipleOf(0.01),
   currency: z.enum(["KRW", "USD"]).default("KRW"),
   memo: z.string().optional(),
+  // 가계부 저축 연동
+  recordAsSaving: z.boolean().default(false),
+  investmentKRW: z.number().positive().optional(),
+  purchaseDate: z.string().optional(),
 });
 
 export type StockHoldingInput = z.infer<typeof stockHoldingSchema>;
@@ -247,7 +369,42 @@ export async function createStockHolding(data: StockHoldingInput) {
       // 실시간 시세 기반으로 자산 잔액 자동 갱신
       await syncAssetBalance(assetId, userId);
 
+      // 가계부에 저축으로 기록 (체크한 경우)
+      if (parsed.data.recordAsSaving && parsed.data.investmentKRW) {
+        const txDate =
+          parsed.data.purchaseDate ?? new Date().toISOString().split("T")[0];
+        const memo = `주식 매수: ${stockName}`;
+
+        // ① assetTransaction (DEPOSIT) 생성
+        const [assetTx] = await db
+          .insert(assetTransactions)
+          .values({
+            userId,
+            assetId,
+            type: "DEPOSIT",
+            amount: parsed.data.investmentKRW.toString(),
+            date: txDate,
+            memo,
+            isFixed: false,
+          })
+          .returning();
+
+        // ② transaction (SAVING) 생성 + assetTransaction 연결
+        await db.insert(transactions).values({
+          userId,
+          type: "SAVING",
+          categoryId: 3,
+          amount: parsed.data.investmentKRW.toString(),
+          date: txDate,
+          memo,
+          method: null,
+          isFixed: false,
+          linkedAssetTransactionId: assetTx.id,
+        });
+      }
+
       revalidatePath("/assets");
+      revalidatePath("/calendar");
       return { success: true, data: result };
     } catch (err) {
       console.error("createStockHolding error:", err);

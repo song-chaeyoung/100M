@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRW, formatPrice } from "@/lib/stocks/format";
 import { calcHoldingStats } from "@/lib/stocks/calc";
@@ -15,6 +15,7 @@ interface StockHoldingCardProps {
   fallbackExchangeRate?: number | null;
   onEdit: (holding: StockHoldingResponse) => void;
   onDelete: (id: number) => void;
+  onBuyMore: (holding: StockHoldingResponse) => void;
 }
 
 export function StockHoldingCard({
@@ -23,6 +24,7 @@ export function StockHoldingCard({
   fallbackExchangeRate,
   onEdit,
   onDelete,
+  onBuyMore,
 }: StockHoldingCardProps) {
   const { evalAmount, profitLoss, profitRate, changeRate } = calcHoldingStats(
     holding,
@@ -122,6 +124,13 @@ export function StockHoldingCard({
           </span>
         </span>
         <div className="flex gap-1">
+          <button
+            onClick={() => onBuyMore(holding)}
+            className="p-1 hover:text-foreground transition-colors"
+            title="추매"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={() => onEdit(holding)}
             className="p-1 hover:text-foreground transition-colors"

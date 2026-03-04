@@ -5,6 +5,7 @@ import { useExchangeRateStore } from "@/store/exchange-rate";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockHoldingFormSheet } from "@/components/stocks/stock-holding-form-sheet";
+import { BuyMoreFormSheet } from "@/components/stocks/buy-more-form-sheet";
 import { StockHoldingCard } from "@/components/stocks/stock-holding-card";
 import { deleteStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
@@ -33,6 +34,9 @@ export function StockHoldingsList({
   const [formOpen, setFormOpen] = useState(false);
   const [editingHolding, setEditingHolding] =
     useState<StockHoldingResponse | null>(null);
+  const [buyMoreOpen, setBuyMoreOpen] = useState(false);
+  const [buyMoreHolding, setBuyMoreHolding] =
+    useState<StockHoldingResponse | null>(null);
 
   const handleAdd = () => {
     setEditingHolding(null);
@@ -52,6 +56,11 @@ export function StockHoldingsList({
     } else {
       toast.error("삭제에 실패했습니다.");
     }
+  };
+
+  const handleBuyMore = (holding: StockHoldingResponse) => {
+    setBuyMoreHolding(holding);
+    setBuyMoreOpen(true);
   };
 
   const {
@@ -146,6 +155,7 @@ export function StockHoldingsList({
               fallbackExchangeRate={exchangeRate}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onBuyMore={handleBuyMore}
             />
           ))}
         </div>
@@ -163,6 +173,13 @@ export function StockHoldingsList({
         onOpenChange={setFormOpen}
         assetId={assetId}
         editingHolding={editingHolding}
+      />
+
+      {/* 추매 폼 시트 */}
+      <BuyMoreFormSheet
+        open={buyMoreOpen}
+        onOpenChange={setBuyMoreOpen}
+        holding={buyMoreHolding}
       />
     </div>
   );

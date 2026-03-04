@@ -46,6 +46,11 @@ export const stockHoldingFormSchema = z.object({
     }),
 
   memo: z.string().optional(),
+
+  // 가계부 저축 연동
+  recordAsSaving: z.boolean(),
+  investmentKRW: z.string().optional(), // 원화 환산 투자금액 (recordAsSaving=true 시 입력)
+  purchaseDate: z.string(), // 거래 날짜
 });
 
 export type StockHoldingFormValues = z.infer<typeof stockHoldingFormSchema>;
