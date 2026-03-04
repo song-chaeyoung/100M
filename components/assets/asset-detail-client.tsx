@@ -112,15 +112,24 @@ export function AssetDetailClient({
 
       {/* STOCK 타입: 주식 보유내역 */}
       {asset.type === "STOCK" ? (
-        <StockHoldingsList
-          assetId={asset.id}
-          holdings={stockHoldings}
-          prices={stockPrices}
-          cashBalance={cashBalance}
-        />
+        <>
+          <StockHoldingsList
+            assetId={asset.id}
+            holdings={stockHoldings}
+            prices={stockPrices}
+            cashBalance={cashBalance}
+          />
+          <AssetTransactionList
+            transactions={transactions}
+            currentAssetId={asset.id}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
+          />
+        </>
       ) : (
         <AssetTransactionList
           transactions={transactions}
+          currentAssetId={asset.id}
           onEdit={handleEditTransaction}
           onDelete={handleDeleteTransaction}
         />

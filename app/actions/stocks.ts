@@ -278,6 +278,19 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         return { success: false, error: "보유내역이 존재하지 않습니다." };
       }
 
+      // ① 예수금 잔액 검증 (DB 작업 전에 먼저 확인)
+      const [assetRow] = await db
+        .select({ cashBalance: assets.cashBalance })
+        .from(assets)
+        .where(eq(assets.id, existing.assetId));
+      const currentCash = Number(assetRow?.cashBalance ?? 0);
+      if (currentCash < investmentKRW) {
+        return {
+          success: false,
+          error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${investmentKRW.toLocaleString()}원)`,
+        };
+      }
+
       // 가중평균 평단가 계산
       // new_avg = (old_qty × old_avg + new_qty × buy_price) / (old_qty + new_qty)
       const oldQty = Number(existing.quantity);
@@ -285,7 +298,7 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
       const newQty = oldQty + quantity;
       const newAvg = (oldQty * oldAvg + quantity * buyPrice) / newQty;
 
-      // ① 보유내역 업데이트
+      // ② 보유내역 업데이트
       await db
         .update(stockHoldings)
         .set({
@@ -295,14 +308,14 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         })
         .where(eq(stockHoldings.id, holdingId));
 
-      // ② assetTransaction (DEPOSIT) 생성
+      // ③ assetTransaction (WITHDRAW) 생성 - 매수 = 예수금 출금
       const memo = `주식 추매: ${existing.stockName} ${quantity}주`;
       const [assetTx] = await db
         .insert(assetTransactions)
         .values({
           userId,
           assetId: existing.assetId,
-          type: "DEPOSIT",
+          type: "WITHDRAW",
           amount: investmentKRW.toString(),
           date: purchaseDate,
           memo,
@@ -310,7 +323,7 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         })
         .returning();
 
-      // ③ "투자" 기본 카테고리 자동 조회
+      // ④ "투자" 기본 카테고리 자동 조회
       const [investCategory] = await db
         .select({ id: categories.id })
         .from(categories)
@@ -324,7 +337,7 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         )
         .limit(1);
 
-      // ④ transaction (SAVING) 생성 → 달력에 표시
+      // ⑤ transaction (SAVING) 생성 → 달력에 표시
       await db.insert(transactions).values({
         userId,
         type: "SAVING",
@@ -337,18 +350,7 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         linkedAssetTransactionId: assetTx.id,
       });
 
-      // ⑤ 예수금 차감 (잔액 부족 시 에러)
-      const [assetRow] = await db
-        .select({ cashBalance: assets.cashBalance })
-        .from(assets)
-        .where(eq(assets.id, existing.assetId));
-      const currentCash = Number(assetRow?.cashBalance ?? 0);
-      if (currentCash < investmentKRW) {
-        return {
-          success: false,
-          error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${investmentKRW.toLocaleString()}원)`,
-        };
-      }
+      // ⑥ 예수금 차감
       await db
         .update(assets)
         .set({
@@ -356,7 +358,7 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         })
         .where(eq(assets.id, existing.assetId));
 
-      // ⑥ 잔액 동기화
+      // ⑦ 잔액 동기화
       await syncAssetBalance(existing.assetId, userId);
 
       revalidatePath("/assets");
@@ -444,13 +446,13 @@ export async function sellPartialStockHolding(data: SellPartialInput) {
           .where(eq(stockHoldings.id, holdingId));
       }
 
-      // ② AssetTransaction (WITHDRAW) 생성
+      // ② AssetTransaction (DEPOSIT) 생성 - 매도 = 예수금 입금
       const [assetTx] = await db
         .insert(assetTransactions)
         .values({
           userId,
           assetId: existing.assetId,
-          type: "WITHDRAW",
+          type: "DEPOSIT",
           amount: proceedsKRW.toString(),
           date: sellDate,
           memo,
@@ -559,7 +561,11 @@ export async function createStockHolding(data: StockHoldingInput) {
 
       // 자산 계좌가 해당 유저 소유인지 확인
       const asset = await db
-        .select({ id: assets.id, type: assets.type })
+        .select({
+          id: assets.id,
+          type: assets.type,
+          cashBalance: assets.cashBalance,
+        })
         .from(assets)
         .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
         .limit(1);
@@ -569,6 +575,17 @@ export async function createStockHolding(data: StockHoldingInput) {
       }
       if (asset[0].type !== "STOCK") {
         return { success: false, error: "STOCK 타입 자산 계좌를 선택하세요." };
+      }
+
+      // ① 예수금 잔액 검증 (recordAsSaving 시 DB 작업 전에 먼저 확인)
+      if (parsed.data.recordAsSaving && parsed.data.investmentKRW) {
+        const currentCash = Number(asset[0].cashBalance ?? 0);
+        if (currentCash < parsed.data.investmentKRW) {
+          return {
+            success: false,
+            error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${parsed.data.investmentKRW.toLocaleString()}원)`,
+          };
+        }
       }
 
       // 동일 계좌에 같은 종목 중복 등록 방지
@@ -617,13 +634,13 @@ export async function createStockHolding(data: StockHoldingInput) {
         const txDate = parsed.data.purchaseDate ?? getTodayKST();
         const txMemo = `주식 매수: ${stockName}`; // memo(보유내역용)와 구분
 
-        // ① assetTransaction (DEPOSIT) 생성
+        // ② assetTransaction (WITHDRAW) 생성 - 매수 = 예수금 출금
         const [assetTx] = await db
           .insert(assetTransactions)
           .values({
             userId,
             assetId,
-            type: "DEPOSIT",
+            type: "WITHDRAW",
             amount: parsed.data.investmentKRW.toString(),
             date: txDate,
             memo: txMemo,
@@ -631,7 +648,7 @@ export async function createStockHolding(data: StockHoldingInput) {
           })
           .returning();
 
-        // ② "투자" 기본 카테고리 자동 조회
+        // ③ "투자" 기본 카테고리 자동 조회
         const [investCategory] = await db
           .select({ id: categories.id })
           .from(categories)
@@ -645,7 +662,7 @@ export async function createStockHolding(data: StockHoldingInput) {
           )
           .limit(1);
 
-        // ③ transaction (SAVING) 생성 + assetTransaction 연결
+        // ④ transaction (SAVING) 생성 + assetTransaction 연결
         await db.insert(transactions).values({
           userId,
           type: "SAVING",
@@ -658,18 +675,7 @@ export async function createStockHolding(data: StockHoldingInput) {
           linkedAssetTransactionId: assetTx.id,
         });
 
-        // ④ 예수금 차감 (잔액 부족 시 에러)
-        const [assetRow] = await db
-          .select({ cashBalance: assets.cashBalance })
-          .from(assets)
-          .where(eq(assets.id, assetId));
-        const currentCash = Number(assetRow?.cashBalance ?? 0);
-        if (currentCash < parsed.data.investmentKRW) {
-          return {
-            success: false,
-            error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${parsed.data.investmentKRW.toLocaleString()}원)`,
-          };
-        }
+        // ⑤ 예수금 차감
         await db
           .update(assets)
           .set({

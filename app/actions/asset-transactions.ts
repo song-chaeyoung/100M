@@ -3,7 +3,7 @@
 import { withAuth } from "@/lib/with-auth";
 import { db } from "@/db";
 import { assetTransactions, assets } from "@/db/schema";
-import { eq, and, desc, lte } from "drizzle-orm";
+import { eq, and, desc, lte, or } from "drizzle-orm";
 import dayjs from "dayjs";
 import { sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
@@ -192,7 +192,13 @@ export async function getAssetTransactions(assetId?: number) {
         lte(assetTransactions.date, today),
       ];
       if (assetId) {
-        conditions.push(eq(assetTransactions.assetId, assetId));
+        // 해당 자산이 출발지이거나, 이체 목적지인 거래 모두 조회
+        conditions.push(
+          or(
+            eq(assetTransactions.assetId, assetId),
+            eq(assetTransactions.toAssetId, assetId),
+          )!,
+        );
       }
 
       const result = await db

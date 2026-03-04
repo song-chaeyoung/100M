@@ -13,15 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
 import { AssetTransaction } from "@/lib/validations/asset-transaction";
 
-const TYPE_CONFIG: Record<
-  AssetTransaction["type"],
-  {
-    label: string;
-    icon: typeof ArrowDownLeft;
-    colorClass: string;
-    sign: "+" | "-";
-  }
-> = {
+interface TypeConfig {
+  label: string;
+  icon: typeof ArrowDownLeft;
+  colorClass: string;
+  sign: "+" | "-";
+}
+
+const TYPE_CONFIG: Record<AssetTransaction["type"], TypeConfig> = {
   DEPOSIT: {
     label: "입금",
     icon: ArrowDownLeft,
@@ -54,8 +53,17 @@ const TYPE_CONFIG: Record<
   },
 };
 
+// 이체를 받은 쪽에서 보일 때 사용
+const TRANSFER_IN_CONFIG: TypeConfig = {
+  label: "이체 입금",
+  icon: ArrowDownLeft,
+  colorClass: "text-blue-500",
+  sign: "+",
+};
+
 interface AssetTransactionItemProps {
   transaction: AssetTransaction;
+  currentAssetId?: number;
   onTap: () => void;
   onDelete: () => void;
 }
@@ -64,6 +72,7 @@ const SWIPE_THRESHOLD = 80;
 
 export function AssetTransactionItem({
   transaction,
+  currentAssetId,
   onTap,
   onDelete,
 }: AssetTransactionItemProps) {
@@ -73,7 +82,14 @@ export function AssetTransactionItem({
   const currentX = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const config = TYPE_CONFIG[transaction.type];
+  // 이체 수신 측이면 TRANSFER_IN_CONFIG 사용
+  const isTransferIn =
+    transaction.type === "TRANSFER" &&
+    currentAssetId !== undefined &&
+    transaction.toAssetId === currentAssetId;
+  const config = isTransferIn
+    ? TRANSFER_IN_CONFIG
+    : TYPE_CONFIG[transaction.type];
   const Icon = config.icon;
   const amount = Number(transaction.amount);
 
@@ -83,19 +99,22 @@ export function AssetTransactionItem({
     setIsDragging(true);
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDragging) return;
 
-    currentX.current = e.touches[0].clientX;
-    const diff = currentX.current - startX.current;
+      currentX.current = e.touches[0].clientX;
+      const diff = currentX.current - startX.current;
 
-    // 왼쪽으로만 스와이프 허용 (최대 -100px)
-    if (diff < 0) {
-      setTranslateX(Math.max(diff, -100));
-    } else {
-      setTranslateX(0);
-    }
-  }, [isDragging]);
+      // 왼쪽으로만 스와이프 허용 (최대 -100px)
+      if (diff < 0) {
+        setTranslateX(Math.max(diff, -100));
+      } else {
+        setTranslateX(0);
+      }
+    },
+    [isDragging],
+  );
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -123,7 +142,7 @@ export function AssetTransactionItem({
       setTranslateX(0);
       onDelete();
     },
-    [onDelete]
+    [onDelete],
   );
 
   return (
@@ -142,7 +161,7 @@ export function AssetTransactionItem({
       <div
         className={cn(
           "relative bg-card p-4 rounded-lg cursor-pointer transition-transform",
-          !isDragging && "duration-200"
+          !isDragging && "duration-200",
         )}
         style={{ transform: `translateX(${translateX}px)` }}
         onTouchStart={handleTouchStart}
@@ -155,7 +174,7 @@ export function AssetTransactionItem({
           <div
             className={cn(
               "w-10 h-10 rounded-full bg-muted flex items-center justify-center",
-              config.colorClass
+              config.colorClass,
             )}
           >
             <Icon className="h-5 w-5" />

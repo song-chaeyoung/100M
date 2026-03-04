@@ -8,6 +8,7 @@ import { AssetTransaction } from "@/lib/validations/asset-transaction";
 
 interface AssetTransactionListProps {
   transactions: AssetTransaction[];
+  currentAssetId?: number;
   onEdit: (transaction: AssetTransaction) => void;
   onDelete: (id: number, isFixed: boolean) => void;
 }
@@ -50,6 +51,7 @@ function formatDateLabel(dateStr: string): string {
 
 export function AssetTransactionList({
   transactions,
+  currentAssetId,
   onEdit,
   onDelete,
 }: AssetTransactionListProps) {
@@ -85,6 +87,7 @@ export function AssetTransactionList({
               <AssetTransactionItem
                 key={transaction.id}
                 transaction={transaction}
+                currentAssetId={currentAssetId}
                 onTap={() => onEdit(transaction)}
                 onDelete={() => onDelete(transaction.id, transaction.isFixed)}
               />
