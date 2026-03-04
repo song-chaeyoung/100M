@@ -137,6 +137,7 @@ describe("createAssetTransaction", () => {
     });
 
     expect(result.success).toBe(true);
+    if (!result.success) return;
     expect(result.data).toEqual({
       id: 10,
       type: "DEPOSIT",
@@ -303,6 +304,7 @@ describe("updateAssetTransaction", () => {
     });
 
     expect(result.success).toBe(true);
+    if (!result.success) return;
     expect(result.data).toEqual({
       id: 1,
       amount: "200000",

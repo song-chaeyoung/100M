@@ -13,6 +13,161 @@ import {
 import type { NewStockPrice } from "@/db/schema";
 
 // ─────────────────────────────────────────────
+// 자산 잔액 동기화 (실시간 시세 기반)
+// ─────────────────────────────────────────────
+
+/**
+ * 주식 자산의 balance를 실시간 평가금액(KRW)으로 갱신
+ * 우선순위: 오늘 캐시 → KIS API 호출 → 평단가 fallback
+ */
+async function syncAssetBalance(
+  assetId: number,
+  userId: string,
+): Promise<void> {
+  try {
+    // 1. 현재 보유 종목 전체 조회
+    const holdings = await db
+      .select()
+      .from(stockHoldings)
+      .where(
+        and(
+          eq(stockHoldings.assetId, assetId),
+          eq(stockHoldings.userId, userId),
+        ),
+      );
+
+    // 보유 종목이 없으면 잔액 0으로 초기화
+    if (holdings.length === 0) {
+      await db
+        .update(assets)
+        .set({ balance: "0", updatedAt: new Date() })
+        .where(eq(assets.id, assetId));
+      return;
+    }
+
+    // 2. 오늘 날짜 캐시 확인
+    const today = new Date().toISOString().split("T")[0];
+    const codes = holdings.map((h) => h.stockCode);
+
+    const cached = await db
+      .select()
+      .from(stockPrices)
+      .where(
+        and(
+          inArray(stockPrices.stockCode, codes),
+          eq(stockPrices.priceDate, today),
+        ),
+      );
+
+    const cachedKeys = new Set(
+      cached.map((c) => `${c.stockCode}:${c.country}`),
+    );
+
+    // 3. 캐시 미스 종목만 KIS API 호출
+    const missingKR = holdings.filter(
+      (h) => h.country === "KR" && !cachedKeys.has(`${h.stockCode}:KR`),
+    );
+    const missingUS = holdings.filter(
+      (h) => h.country === "US" && !cachedKeys.has(`${h.stockCode}:US`),
+    );
+
+    const freshPrices: NewStockPrice[] = [];
+
+    if (missingKR.length > 0) {
+      const krPrices = await fetchKRStockPricesWithQueue(
+        missingKR.map((h) => ({
+          stockCode: h.stockCode,
+          market: h.market as "KOSPI" | "KOSDAQ",
+          stockName: h.stockName,
+        })),
+      );
+      freshPrices.push(...krPrices);
+    }
+
+    if (missingUS.length > 0) {
+      const US_MARKETS = new Set(["NYSE", "NASDAQ", "AMEX"]);
+
+      // fallback 환율: DB에서 가장 최근 환율 조회
+      const recentExchangeRate = await db
+        .select({ exchangeRate: stockPrices.exchangeRate })
+        .from(stockPrices)
+        .where(
+          and(
+            eq(stockPrices.country, "US"),
+            sql`${stockPrices.exchangeRate} IS NOT NULL`,
+          ),
+        )
+        .orderBy(sql`${stockPrices.updatedAt} DESC`)
+        .limit(1)
+        .then((rows) => rows[0]?.exchangeRate ?? null);
+
+      const usPrices = await fetchUSStockPricesWithQueue(
+        missingUS.map((h) => ({
+          stockCode: h.stockCode,
+          market: (US_MARKETS.has(h.market) ? h.market : "NYSE") as
+            | "NYSE"
+            | "NASDAQ"
+            | "AMEX",
+          stockName: h.stockName,
+          fallbackExchangeRate: recentExchangeRate,
+        })),
+      );
+      freshPrices.push(...usPrices);
+    }
+
+    // 새 시세 캐시 저장
+    if (freshPrices.length > 0) {
+      await upsertStockPrices(freshPrices);
+    }
+
+    // 4. 최신 시세로 평가금액 합산
+    const allPrices = await db
+      .select()
+      .from(stockPrices)
+      .where(inArray(stockPrices.stockCode, codes));
+
+    const priceMap = new Map(
+      allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
+    );
+
+    let totalBalance = 0;
+    for (const h of holdings) {
+      const key = `${h.stockCode}:${h.country}`;
+      const p = priceMap.get(key);
+      const qty = Number(h.quantity);
+
+      if (p?.krwPrice) {
+        // 실시간 KRW 환산가
+        totalBalance += Number(p.krwPrice) * qty;
+      } else if (p?.currentPrice && h.currency === "USD" && p.exchangeRate) {
+        // krwPrice 없을 때: currentPrice × exchangeRate
+        totalBalance +=
+          Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
+      } else {
+        // 최종 fallback: 평단가 기준 (KRW: 그대로, USD: 환율 없으면 그대로)
+        totalBalance += Number(h.avgPrice) * qty;
+      }
+    }
+
+    // 5. assets.balance 업데이트
+    await db
+      .update(assets)
+      .set({
+        balance: Math.round(totalBalance).toString(),
+        updatedAt: new Date(),
+      })
+      .where(eq(assets.id, assetId));
+
+    console.log(
+      `[syncAssetBalance] assetId=${assetId} balance=${Math.round(totalBalance)}`,
+    );
+  } catch (err) {
+    // 잔액 동기화 실패해도 보유내역 CRUD는 성공 처리
+    console.error("[syncAssetBalance] error:", err);
+  }
+}
+
+// ─────────────────────────────────────────────
 // 유효성 검사
 // ─────────────────────────────────────────────
 
@@ -89,6 +244,9 @@ export async function createStockHolding(data: StockHoldingInput) {
         })
         .returning();
 
+      // 실시간 시세 기반으로 자산 잔액 자동 갱신
+      await syncAssetBalance(assetId, userId);
+
       revalidatePath("/assets");
       return { success: true, data: result };
     } catch (err) {
@@ -137,6 +295,9 @@ export async function updateStockHolding(
         .where(eq(stockHoldings.id, id))
         .returning();
 
+      // 실시간 시세 기반으로 자산 잔액 자동 갱신
+      await syncAssetBalance(existing[0].assetId, userId);
+
       revalidatePath("/assets");
       return { success: true, data: result };
     } catch (err) {
@@ -162,7 +323,11 @@ export async function deleteStockHolding(id: number) {
         return { success: false, error: "보유내역을 찾을 수 없습니다." };
       }
 
+      const { assetId } = existing[0];
       await db.delete(stockHoldings).where(eq(stockHoldings.id, id));
+
+      // 삭제 후 실시간 시세 기반으로 자산 잔액 자동 갱신
+      await syncAssetBalance(assetId, userId);
 
       revalidatePath("/assets");
       return { success: true };
@@ -229,13 +394,16 @@ async function upsertStockPrices(prices: NewStockPrice[]) {
 export async function getStockPricesForAsset(assetId: number) {
   return withAuth(async (userId) => {
     try {
-      // 1. 보유 종목 조회
+      // 1. 보유 종목 조회 (balance 계산용 quantity/avgPrice/currency 포함)
       const holdings = await db
         .select({
           stockCode: stockHoldings.stockCode,
           stockName: stockHoldings.stockName,
           country: stockHoldings.country,
-          market: stockHoldings.market, // 실제 market 컴럼 사용
+          market: stockHoldings.market,
+          quantity: stockHoldings.quantity,
+          avgPrice: stockHoldings.avgPrice,
+          currency: stockHoldings.currency,
         })
         .from(stockHoldings)
         .where(
@@ -330,6 +498,52 @@ export async function getStockPricesForAsset(assetId: number) {
         .select()
         .from(stockPrices)
         .where(inArray(stockPrices.stockCode, codes));
+
+      // 5. 평가금액 합산 → assets.balance 자동 갱신 (페이지 접속 시마다)
+      try {
+        const priceMap = new Map(
+          allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
+        );
+
+        let totalBalance = 0;
+        for (const h of holdings) {
+          const key = `${h.stockCode}:${h.country}`;
+          const p = priceMap.get(key);
+          const qty = Number(h.quantity);
+
+          if (p?.krwPrice) {
+            totalBalance += Number(p.krwPrice) * qty;
+          } else if (
+            p?.currentPrice &&
+            h.currency === "USD" &&
+            p.exchangeRate
+          ) {
+            totalBalance +=
+              Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
+          } else {
+            // fallback: 평단가 기준
+            totalBalance += Number(h.avgPrice) * qty;
+          }
+        }
+
+        await db
+          .update(assets)
+          .set({
+            balance: Math.round(totalBalance).toString(),
+            updatedAt: new Date(),
+          })
+          .where(eq(assets.id, assetId));
+
+        console.log(
+          `[getStockPricesForAsset] assetId=${assetId} balance=${Math.round(totalBalance)} 갱신 완료`,
+        );
+      } catch (balanceErr) {
+        // balance 갱신 실패해도 시세 조회는 성공으로 반환
+        console.error(
+          "[getStockPricesForAsset] balance 갱신 실패:",
+          balanceErr,
+        );
+      }
 
       return { success: true, data: allPrices };
     } catch (err) {

@@ -11,10 +11,9 @@ import { AssetDetailClient } from "@/components/assets/asset-detail-client";
 import { handleApiResults } from "@/lib/utils/api-handler";
 import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
-import type {
-  StockHoldingResponse,
-  StockPriceResponse,
-} from "@/lib/validations/stock";
+import type { StockPriceResponse } from "@/lib/validations/stock";
+import { stockHoldingResponseSchema } from "@/lib/validations/stock";
+import type { StockHoldingResponse } from "@/lib/validations/stock";
 
 export const metadata: Metadata = {
   title: "자산 상세",
@@ -61,8 +60,9 @@ export default async function AssetDetailPage({
       holdingsResult.status === "fulfilled" &&
       holdingsResult.value?.success
     ) {
-      stockHoldings = (holdingsResult.value.data ??
-        []) as StockHoldingResponse[];
+      stockHoldings = stockHoldingResponseSchema
+        .array()
+        .parse(holdingsResult.value.data ?? []);
     }
     if (pricesResult.status === "fulfilled" && pricesResult.value?.success) {
       stockPrices = (pricesResult.value.data ?? []) as StockPriceResponse[];

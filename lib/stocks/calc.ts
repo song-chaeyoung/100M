@@ -66,23 +66,42 @@ export interface TotalStats {
 
 /**
  * 전체 종목의 합산 평가금액 / 손익 / 수익률 계산
+ * @param fallbackExchangeRate krwPrice가 없는 미국 주식에 사용할 fallback 환율
  */
 export function calcTotalStats(
   holdingsWithPrices: Array<{
     holding: StockHoldingResponse;
     price: StockPriceResponse | undefined;
   }>,
+  fallbackExchangeRate?: number | null,
 ): TotalStats {
   const totalEvalKRW = holdingsWithPrices.reduce((acc, { holding, price }) => {
-    if (!price?.krwPrice) return acc;
-    return acc + Number(price.krwPrice) * holding.quantity;
+    if (price?.krwPrice) {
+      return acc + Number(price.krwPrice) * holding.quantity;
+    }
+    // krwPrice 없는 미국 주식: currentPrice × fallbackExchangeRate
+    if (
+      price?.currentPrice &&
+      holding.currency === "USD" &&
+      fallbackExchangeRate
+    ) {
+      return (
+        acc +
+        Math.round(Number(price.currentPrice) * fallbackExchangeRate) *
+          holding.quantity
+      );
+    }
+    return acc;
   }, 0);
 
   const totalInvestedKRW = holdingsWithPrices.reduce(
     (acc, { holding, price }) => {
       let avgPriceKRW = Number(holding.avgPrice);
-      if (holding.currency === "USD" && price?.exchangeRate) {
-        avgPriceKRW = avgPriceKRW * Number(price.exchangeRate);
+      if (holding.currency === "USD") {
+        const rate = price?.exchangeRate
+          ? Number(price.exchangeRate)
+          : (fallbackExchangeRate ?? null);
+        if (rate) avgPriceKRW = avgPriceKRW * rate;
       }
       return acc + avgPriceKRW * holding.quantity;
     },

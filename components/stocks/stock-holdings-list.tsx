@@ -73,8 +73,10 @@ export function StockHoldingsList({
     ),
   }));
 
-  const { totalEvalKRW, totalProfitLoss, totalProfitRate } =
-    calcTotalStats(holdingsWithPrices);
+  const { totalEvalKRW, totalProfitLoss, totalProfitRate } = calcTotalStats(
+    holdingsWithPrices,
+    exchangeRate,
+  );
 
   if (isLoading) {
     return (
@@ -92,7 +94,9 @@ export function StockHoldingsList({
       {holdings.length > 0 && (
         <div className="rounded-xl border bg-card p-4 space-y-1">
           <p className="text-xs text-muted-foreground">총 평가금액</p>
-          <p className="text-xl font-bold">{formatKRW(totalEvalKRW)}</p>
+          <p className="text-xl font-bold">
+            {formatKRW(Math.round(totalEvalKRW))}
+          </p>
           <div className="flex items-center gap-1.5">
             {totalProfitLoss >= 0 ? (
               <TrendingUp className="h-3.5 w-3.5 text-red-500" />
