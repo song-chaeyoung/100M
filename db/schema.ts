@@ -296,6 +296,11 @@ export const assets = pgTable(
       .notNull()
       .default("0"),
 
+    // 주식 예수금 (STOCK 타입에서만 사용, 매도 대금/이체 입금 시 증가)
+    cashBalance: decimal("cash_balance", { precision: 12, scale: 0 })
+      .notNull()
+      .default("0"),
+
     institution: text("institution"), // 금융기관명
     accountNumber: text("account_number"), // 계좌번호
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockHoldingFormSheet } from "@/components/stocks/stock-holding-form-sheet";
 import { BuyMoreFormSheet } from "@/components/stocks/buy-more-form-sheet";
+import { SellPartialFormSheet } from "@/components/stocks/sell-partial-form-sheet";
 import { StockHoldingCard } from "@/components/stocks/stock-holding-card";
 import { deleteStockHolding } from "@/app/actions/stocks";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ interface StockHoldingsListProps {
   assetId: number;
   holdings: StockHoldingResponse[];
   prices: StockPriceResponse[];
+  cashBalance?: number;
   isLoading?: boolean;
 }
 
@@ -29,6 +31,7 @@ export function StockHoldingsList({
   assetId,
   holdings,
   prices,
+  cashBalance = 0,
   isLoading = false,
 }: StockHoldingsListProps) {
   const [formOpen, setFormOpen] = useState(false);
@@ -37,6 +40,10 @@ export function StockHoldingsList({
   const [buyMoreOpen, setBuyMoreOpen] = useState(false);
   const [buyMoreHolding, setBuyMoreHolding] =
     useState<StockHoldingResponse | null>(null);
+  const [sellOpen, setSellOpen] = useState(false);
+  const [sellHolding, setSellHolding] = useState<StockHoldingResponse | null>(
+    null,
+  );
 
   const handleAdd = () => {
     setEditingHolding(null);
@@ -61,6 +68,11 @@ export function StockHoldingsList({
   const handleBuyMore = (holding: StockHoldingResponse) => {
     setBuyMoreHolding(holding);
     setBuyMoreOpen(true);
+  };
+
+  const handleSellPartial = (holding: StockHoldingResponse) => {
+    setSellHolding(holding);
+    setSellOpen(true);
   };
 
   const {
@@ -102,31 +114,43 @@ export function StockHoldingsList({
       {/* 총 평가 요약 */}
       {holdings.length > 0 && (
         <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-xs text-muted-foreground">총 평가금액</p>
-          <p className="text-xl font-bold">
-            {formatKRW(Math.round(totalEvalKRW))}
-          </p>
-          <div className="flex items-center gap-1.5">
-            {totalProfitLoss >= 0 ? (
-              <TrendingUp className="h-3.5 w-3.5 text-red-500" />
-            ) : (
-              <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
-            )}
-            <span
-              className={cn(
-                "text-sm font-medium",
-                totalProfitLoss > 0 && "text-red-500",
-                totalProfitLoss < 0 && "text-blue-500",
-                totalProfitLoss === 0 && "text-muted-foreground",
+          <p className="text-xs text-muted-foreground">예수금</p>
+          <p className="text-sm font-semibold">{formatKRW(cashBalance)}</p>
+          <div className="border-t pt-2 mt-2">
+            <p className="text-xs text-muted-foreground">주식 평가금액</p>
+            <p className="text-xl font-bold">
+              {formatKRW(Math.round(totalEvalKRW))}
+            </p>
+            <div className="flex items-center gap-1.5">
+              {totalProfitLoss >= 0 ? (
+                <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
               )}
-            >
-              {totalProfitLoss >= 0 ? "+" : ""}
-              {formatKRW(Math.round(totalProfitLoss))}
-              {" ("}
-              {totalProfitRate >= 0 ? "+" : ""}
-              {totalProfitRate.toFixed(2)}
-              {"%)"}
-            </span>
+              <span
+                className={cn(
+                  "text-sm font-medium",
+                  totalProfitLoss > 0 && "text-red-500",
+                  totalProfitLoss < 0 && "text-blue-500",
+                  totalProfitLoss === 0 && "text-muted-foreground",
+                )}
+              >
+                {totalProfitLoss >= 0 ? "+" : ""}
+                {formatKRW(Math.round(totalProfitLoss))}
+                {" ("}
+                {totalProfitRate >= 0 ? "+" : ""}
+                {totalProfitRate.toFixed(2)}
+                {"%)"}
+              </span>
+            </div>
+          </div>
+          <div className="border-t pt-2 mt-1 flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">
+              예수금 포함 자산총계
+            </p>
+            <p className="text-sm font-bold">
+              {formatKRW(Math.round(totalEvalKRW) + cashBalance)}
+            </p>
           </div>
         </div>
       )}
@@ -156,6 +180,7 @@ export function StockHoldingsList({
               onEdit={handleEdit}
               onDelete={handleDelete}
               onBuyMore={handleBuyMore}
+              onSellPartial={handleSellPartial}
             />
           ))}
         </div>
@@ -180,6 +205,13 @@ export function StockHoldingsList({
         open={buyMoreOpen}
         onOpenChange={setBuyMoreOpen}
         holding={buyMoreHolding}
+      />
+
+      {/* 분할매도 폼 시트 */}
+      <SellPartialFormSheet
+        open={sellOpen}
+        onOpenChange={setSellOpen}
+        holding={sellHolding}
       />
     </div>
   );

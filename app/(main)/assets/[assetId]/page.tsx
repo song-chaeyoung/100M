@@ -49,6 +49,7 @@ export default async function AssetDetailPage({
   // STOCK 타입일 때만 주식 데이터 추가 페칭
   let stockHoldings: StockHoldingResponse[] = [];
   let stockPrices: StockPriceResponse[] = [];
+  let cashBalance = 0;
 
   if (asset?.type === "STOCK") {
     const [holdingsResult, pricesResult] = await Promise.allSettled([
@@ -67,6 +68,9 @@ export default async function AssetDetailPage({
     if (pricesResult.status === "fulfilled" && pricesResult.value?.success) {
       stockPrices = (pricesResult.value.data ?? []) as StockPriceResponse[];
     }
+
+    // cashBalance: asset.cashBalance (서버에서 이미 조회됨)
+    cashBalance = Number(asset?.cashBalance ?? 0);
   }
 
   return (
@@ -76,6 +80,7 @@ export default async function AssetDetailPage({
       allAssets={allAssets}
       stockHoldings={stockHoldings}
       stockPrices={stockPrices}
+      cashBalance={cashBalance}
       errors={errors.length > 0 ? errors : undefined}
     />
   );

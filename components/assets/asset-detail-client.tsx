@@ -24,6 +24,7 @@ interface AssetDetailClientProps {
   allAssets: Asset[];
   stockHoldings?: StockHoldingResponse[];
   stockPrices?: StockPriceResponse[];
+  cashBalance?: number;
   errors?: (string | undefined)[];
 }
 
@@ -33,6 +34,7 @@ export function AssetDetailClient({
   allAssets,
   stockHoldings = [],
   stockPrices = [],
+  cashBalance = 0,
   errors,
 }: AssetDetailClientProps) {
   const [transactionSheet, setTransactionSheet] = useState<
@@ -114,6 +116,7 @@ export function AssetDetailClient({
           assetId={asset.id}
           holdings={stockHoldings}
           prices={stockPrices}
+          cashBalance={cashBalance}
         />
       ) : (
         <AssetTransactionList

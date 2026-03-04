@@ -85,7 +85,7 @@ function calcTotalBalance<P extends PriceForBalance>(
  * 주식 자산의 balance를 실시간 평가금액(KRW)으로 갱신
  * 우선순위: 오늘 캐시 → KIS API 호출 → 평단가 fallback
  */
-async function syncAssetBalance(
+export async function syncAssetBalance(
   assetId: number,
   userId: string,
 ): Promise<void> {
@@ -101,11 +101,18 @@ async function syncAssetBalance(
         ),
       );
 
-    // 보유 종목이 없으면 잔액 0으로 초기화
+    // 보유 종목이 없으면 cashBalance만 유지한채 잔액 재계산
     if (holdings.length === 0) {
+      const [assetRow] = await db
+        .select({ cashBalance: assets.cashBalance })
+        .from(assets)
+        .where(eq(assets.id, assetId));
       await db
         .update(assets)
-        .set({ balance: "0", updatedAt: new Date() })
+        .set({
+          balance: assetRow?.cashBalance ?? "0",
+          updatedAt: new Date(),
+        })
         .where(eq(assets.id, assetId));
       return;
     }
@@ -196,9 +203,17 @@ async function syncAssetBalance(
       allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
     );
 
-    const totalBalance = calcTotalBalance(holdings, priceMap);
+    const stockEval = calcTotalBalance(holdings, priceMap);
 
-    // 5. assets.balance 업데이트
+    // 5. cashBalance 조회 후 balance = 주식평가 + 예수금
+    const [assetRow] = await db
+      .select({ cashBalance: assets.cashBalance })
+      .from(assets)
+      .where(eq(assets.id, assetId));
+    const cashBal = Number(assetRow?.cashBalance ?? 0);
+    const totalBalance = stockEval + cashBal;
+
+    // 6. assets.balance 업데이트
     await db
       .update(assets)
       .set({
@@ -208,7 +223,7 @@ async function syncAssetBalance(
       .where(eq(assets.id, assetId));
 
     console.log(
-      `[syncAssetBalance] assetId=${assetId} balance=${Math.round(totalBalance)}`,
+      `[syncAssetBalance] assetId=${assetId} stockEval=${Math.round(stockEval)} cash=${cashBal} balance=${Math.round(totalBalance)}`,
     );
   } catch (err) {
     // 잔액 동기화 실패해도 보유내역 CRUD는 성공 처리
@@ -322,7 +337,26 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
         linkedAssetTransactionId: assetTx.id,
       });
 
-      // ④ 잔액 동기화
+      // ⑤ 예수금 차감 (잔액 부족 시 에러)
+      const [assetRow] = await db
+        .select({ cashBalance: assets.cashBalance })
+        .from(assets)
+        .where(eq(assets.id, existing.assetId));
+      const currentCash = Number(assetRow?.cashBalance ?? 0);
+      if (currentCash < investmentKRW) {
+        return {
+          success: false,
+          error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${investmentKRW.toLocaleString()}원)`,
+        };
+      }
+      await db
+        .update(assets)
+        .set({
+          cashBalance: sql`${assets.cashBalance}::numeric - ${investmentKRW}`,
+        })
+        .where(eq(assets.id, existing.assetId));
+
+      // ⑥ 잔액 동기화
       await syncAssetBalance(existing.assetId, userId);
 
       revalidatePath("/assets");
@@ -331,6 +365,143 @@ export async function buyMoreStockHolding(data: BuyMoreInput) {
     } catch (err) {
       console.error("buyMoreStockHolding error:", err);
       return { success: false, error: "추매에 실패했습니다." };
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// 분할매도
+// ─────────────────────────────────────────────
+
+const sellPartialSchema = z.object({
+  holdingId: z.number().int().positive(),
+  quantity: z.number().positive("매도 수량은 0보다 커야 합니다."),
+  sellPrice: z.number().positive("매도가는 0 초과여야 합니다."),
+  proceedsKRW: z.number().positive("매도 대금을 입력하세요."),
+  sellDate: z.string(),
+});
+
+export type SellPartialInput = z.infer<typeof sellPartialSchema>;
+
+/**
+ * 분할매도: 보유 수량 차감 (전량이면 삭제) + 달력 거래 생성
+ * - 평단가는 변경하지 않음 (남은 주식 손익 왜곡 방지)
+ * - AssetTransaction(WITHDRAW) + Transaction(INCOME) 생성
+ */
+export async function sellPartialStockHolding(data: SellPartialInput) {
+  return withAuth(async (userId) => {
+    try {
+      const parsed = sellPartialSchema.safeParse(data);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: z.flattenError(parsed.error).fieldErrors,
+        };
+      }
+
+      const { holdingId, quantity, proceedsKRW, sellDate } = parsed.data;
+
+      // 기존 보유내역 조회
+      const [existing] = await db
+        .select()
+        .from(stockHoldings)
+        .where(
+          and(
+            eq(stockHoldings.id, holdingId),
+            eq(stockHoldings.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) {
+        return { success: false, error: "보유내역이 존재하지 않습니다." };
+      }
+
+      const oldQty = Number(existing.quantity);
+
+      // 매도 수량 검증 (보유 수량 초과 불가)
+      if (quantity > oldQty) {
+        return {
+          success: false,
+          error: `매도 수량(${quantity})이 보유 수량(${oldQty})을 초과합니다.`,
+        };
+      }
+
+      const remainQty = oldQty - quantity;
+      const memo = `주식 매도: ${existing.stockName} ${quantity}주`;
+
+      if (remainQty === 0) {
+        // 전량 매도 → 보유내역 삭제
+        await db.delete(stockHoldings).where(eq(stockHoldings.id, holdingId));
+      } else {
+        // 분할매도 → 수량만 차감, 평단가 유지
+        await db
+          .update(stockHoldings)
+          .set({
+            quantity: remainQty.toString(),
+            updatedAt: new Date(),
+          })
+          .where(eq(stockHoldings.id, holdingId));
+      }
+
+      // ② AssetTransaction (WITHDRAW) 생성
+      const [assetTx] = await db
+        .insert(assetTransactions)
+        .values({
+          userId,
+          assetId: existing.assetId,
+          type: "WITHDRAW",
+          amount: proceedsKRW.toString(),
+          date: sellDate,
+          memo,
+          isFixed: false,
+        })
+        .returning();
+
+      // ③ "투자" 기본 카테고리 자동 조회
+      const [investCategory] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(
+          and(
+            eq(categories.name, "투자"),
+            eq(categories.type, "SAVING"),
+            eq(categories.isDefault, true),
+            isNull(categories.userId),
+          ),
+        )
+        .limit(1);
+
+      // ④ Transaction (INCOME) 생성 → 달력에 표시
+      await db.insert(transactions).values({
+        userId,
+        type: "INCOME",
+        categoryId: investCategory?.id ?? null,
+        amount: proceedsKRW.toString(),
+        date: sellDate,
+        memo,
+        method: null,
+        isFixed: false,
+        linkedAssetTransactionId: assetTx.id,
+      });
+
+      // ⑤ 매도 대금 → 예수금 적립
+      await db
+        .update(assets)
+        .set({
+          cashBalance: sql`${assets.cashBalance}::numeric + ${proceedsKRW}`,
+        })
+        .where(eq(assets.id, existing.assetId));
+
+      // ⑥ 잔액 동기화
+      await syncAssetBalance(existing.assetId, userId);
+
+      revalidatePath("/assets");
+      revalidatePath("/calendar");
+      return { success: true };
+    } catch (err) {
+      console.error("sellPartialStockHolding error:", err);
+      return { success: false, error: "매도에 실패했습니다." };
     }
   });
 }
@@ -486,6 +657,25 @@ export async function createStockHolding(data: StockHoldingInput) {
           isFixed: false,
           linkedAssetTransactionId: assetTx.id,
         });
+
+        // ④ 예수금 차감 (잔액 부족 시 에러)
+        const [assetRow] = await db
+          .select({ cashBalance: assets.cashBalance })
+          .from(assets)
+          .where(eq(assets.id, assetId));
+        const currentCash = Number(assetRow?.cashBalance ?? 0);
+        if (currentCash < parsed.data.investmentKRW) {
+          return {
+            success: false,
+            error: `예수금이 부족합니다. (예수금: ${currentCash.toLocaleString()}원 / 필요: ${parsed.data.investmentKRW.toLocaleString()}원)`,
+          };
+        }
+        await db
+          .update(assets)
+          .set({
+            cashBalance: sql`${assets.cashBalance}::numeric - ${parsed.data.investmentKRW}`,
+          })
+          .where(eq(assets.id, assetId));
       }
 
       revalidatePath("/assets");

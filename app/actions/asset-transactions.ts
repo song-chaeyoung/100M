@@ -15,6 +15,7 @@ import {
 } from "@/lib/validations/asset-transaction";
 import { z } from "zod";
 import { getBalanceOperation } from "@/lib/utils/asset-transaction";
+import { syncAssetBalance as syncStockBalance } from "./stocks";
 
 /**
  * 자산 거래 생성
@@ -34,7 +35,9 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
       const asset = await db
         .select()
         .from(assets)
-        .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)))
+        .where(
+          and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)),
+        )
         .limit(1);
 
       if (!asset[0]) {
@@ -47,12 +50,18 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
           .select()
           .from(assets)
           .where(
-            and(eq(assets.id, parsed.data.toAssetId), eq(assets.userId, userId)),
+            and(
+              eq(assets.id, parsed.data.toAssetId),
+              eq(assets.userId, userId),
+            ),
           )
           .limit(1);
 
         if (!toAsset[0]) {
-          return { success: false, error: "이체 대상 자산이 존재하지 않습니다." };
+          return {
+            success: false,
+            error: "이체 대상 자산이 존재하지 않습니다.",
+          };
         }
       }
 
@@ -86,18 +95,76 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
 
       let result;
       if (parsed.data.type === "TRANSFER" && parsed.data.toAssetId) {
-        const [[inserted]] = await db.batch([
-          insertQuery,
-          fromBalanceQuery,
-          db
-            .update(assets)
-            .set({
-              balance: sql`${assets.balance} + ${amount}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(assets.id, parsed.data.toAssetId)),
-        ]);
-        result = inserted;
+        // TRANSFER: toAsset 타입에 따라 cashBalance vs balance 구분
+        const [toAssetInfo] = await db
+          .select({ type: assets.type })
+          .from(assets)
+          .where(eq(assets.id, parsed.data.toAssetId));
+        const [fromAssetInfo] = await db
+          .select({ type: assets.type })
+          .from(assets)
+          .where(eq(assets.id, parsed.data.assetId));
+
+        if (toAssetInfo?.type === "STOCK") {
+          // 실제 목적지가 주식계좌 → cashBalance 증가
+          const [[inserted]] = await db.batch([
+            insertQuery,
+            fromAssetInfo?.type === "STOCK"
+              ? db
+                  .update(assets)
+                  .set({
+                    cashBalance: sql`${assets.cashBalance}::numeric - ${amount}`,
+                  })
+                  .where(eq(assets.id, parsed.data.assetId))
+              : fromBalanceQuery,
+            db
+              .update(assets)
+              .set({
+                cashBalance: sql`${assets.cashBalance}::numeric + ${amount}`,
+              })
+              .where(eq(assets.id, parsed.data.toAssetId)),
+          ]);
+          result = inserted;
+          // 주식계좌 balance 재계산
+          await syncStockBalance(parsed.data.toAssetId, userId);
+          if (fromAssetInfo?.type === "STOCK") {
+            await syncStockBalance(parsed.data.assetId, userId);
+          }
+        } else if (fromAssetInfo?.type === "STOCK") {
+          // 출발지가 주식계좌 → cashBalance 감소
+          const [[inserted]] = await db.batch([
+            insertQuery,
+            db
+              .update(assets)
+              .set({
+                cashBalance: sql`${assets.cashBalance}::numeric - ${amount}`,
+              })
+              .where(eq(assets.id, parsed.data.assetId)),
+            db
+              .update(assets)
+              .set({
+                balance: sql`${assets.balance} + ${amount}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(assets.id, parsed.data.toAssetId)),
+          ]);
+          result = inserted;
+          await syncStockBalance(parsed.data.assetId, userId);
+        } else {
+          // 일반 자산 → 자산 기존 로직
+          const [[inserted]] = await db.batch([
+            insertQuery,
+            fromBalanceQuery,
+            db
+              .update(assets)
+              .set({
+                balance: sql`${assets.balance} + ${amount}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(assets.id, parsed.data.toAssetId)),
+          ]);
+          result = inserted;
+        }
       } else {
         const [[inserted]] = await db.batch([insertQuery, fromBalanceQuery]);
         result = inserted;
@@ -152,7 +219,10 @@ export async function getAssetTransactions(assetId?: number) {
         .from(assetTransactions)
         .leftJoin(assets, eq(assetTransactions.assetId, assets.id))
         .where(and(...conditions))
-        .orderBy(desc(assetTransactions.date), desc(assetTransactions.createdAt));
+        .orderBy(
+          desc(assetTransactions.date),
+          desc(assetTransactions.createdAt),
+        );
 
       return { success: true, data: result };
     } catch (error) {
@@ -226,7 +296,10 @@ export async function updateAssetTransaction(
         .select()
         .from(assetTransactions)
         .where(
-          and(eq(assetTransactions.id, id), eq(assetTransactions.userId, userId)),
+          and(
+            eq(assetTransactions.id, id),
+            eq(assetTransactions.userId, userId),
+          ),
         )
         .limit(1);
 
