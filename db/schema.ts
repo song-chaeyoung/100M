@@ -688,9 +688,9 @@ export const stockHoldings = pgTable(
 // 7. Stock Relations
 // -------------------------------------------------------------------
 
-export const stockMasterRelations = relations(stockMaster, ({}) => ({}));
+export const stockMasterRelations = relations(stockMaster, () => ({}));
 
-export const stockPricesRelations = relations(stockPrices, ({}) => ({}));
+export const stockPricesRelations = relations(stockPrices, () => ({}));
 
 export const stockHoldingsRelations = relations(stockHoldings, ({ one }) => ({
   user: one(users, {
