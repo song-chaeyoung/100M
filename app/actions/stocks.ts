@@ -346,13 +346,42 @@ export async function buyMoreStockHolding(data: BuyMoreStockHoldingInput) {
         linkedAssetTransactionId: assetTx.id,
       });
 
-      // ⑥ 예수금 차감
-      await db
+      // ⑥ 예수금 조건부 차감 (원자적 업데이트)
+      const [updatedAsset] = await db
         .update(assets)
         .set({
           cashBalance: sql`${assets.cashBalance}::numeric - ${investmentKRW}`,
         })
-        .where(eq(assets.id, existing.assetId));
+        .where(
+          and(
+            eq(assets.id, existing.assetId),
+            sql`${assets.cashBalance}::numeric >= ${investmentKRW}`,
+          ),
+        )
+        .returning();
+
+      if (!updatedAsset) {
+        // 잔액 부족 시 롤백
+        await db
+          .delete(transactions)
+          .where(eq(transactions.linkedAssetTransactionId, assetTx.id));
+        await db
+          .delete(assetTransactions)
+          .where(eq(assetTransactions.id, assetTx.id));
+        await db
+          .update(stockHoldings)
+          .set({
+            quantity: existing.quantity,
+            avgPrice: existing.avgPrice,
+          })
+          .where(eq(stockHoldings.id, holdingId));
+
+        return {
+          success: false,
+          error:
+            "예수금이 부족합니다. (동시 결제로 인해 잔액이 변동되었습니다.)",
+        };
+      }
 
       // ⑦ 잔액 동기화
       await syncAssetBalance(existing.assetId, userId);
@@ -638,13 +667,35 @@ export async function createStockHolding(data: CreateStockHoldingInput) {
           linkedAssetTransactionId: assetTx.id,
         });
 
-        // ⑤ 예수금 차감
-        await db
+        // ⑤ 예수금 조건부 차감 (원자적 업데이트)
+        const [updatedAsset] = await db
           .update(assets)
           .set({
             cashBalance: sql`${assets.cashBalance}::numeric - ${parsed.data.investmentKRW}`,
           })
-          .where(eq(assets.id, assetId));
+          .where(
+            and(
+              eq(assets.id, assetId),
+              sql`${assets.cashBalance}::numeric >= ${parsed.data.investmentKRW}`,
+            ),
+          )
+          .returning();
+
+        if (!updatedAsset) {
+          // 잔액 부족으로 업데이트 실패 시 롤백 (TOCTOU 방어)
+          await db
+            .delete(transactions)
+            .where(eq(transactions.linkedAssetTransactionId, assetTx.id));
+          await db
+            .delete(assetTransactions)
+            .where(eq(assetTransactions.id, assetTx.id));
+          await db.delete(stockHoldings).where(eq(stockHoldings.id, result.id));
+
+          return {
+            success: false,
+            error: "예수금이 부족합니다. (요청 금액보다 잔액이 적습니다.)",
+          };
+        }
       }
 
       // 모든 DB 변경 이후 실시간 시세 기반으로 자산 잔액 갱신
