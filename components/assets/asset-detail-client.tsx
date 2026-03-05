@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssetHeader } from "./asset-header";
 import { AssetTransactionList } from "./asset-transaction-list";
 import { AssetTransactionFormSheet } from "./asset-transaction-form-sheet";
@@ -12,11 +13,19 @@ import { deleteAssetTransaction } from "@/app/actions/asset-transactions";
 import { toast } from "sonner";
 import type { Asset } from "@/lib/validations/asset";
 import type { AssetTransaction } from "@/lib/validations/asset-transaction";
+import type {
+  StockHoldingResponse,
+  StockPriceResponse,
+} from "@/lib/validations/stock";
+import { StockHoldingsList } from "@/components/stocks/stock-holdings-list";
 
 interface AssetDetailClientProps {
   asset: Asset | null;
   transactions: AssetTransaction[];
   allAssets: Asset[];
+  stockHoldings?: StockHoldingResponse[];
+  stockPrices?: StockPriceResponse[];
+  cashBalance?: number;
   errors?: (string | undefined)[];
 }
 
@@ -24,6 +33,9 @@ export function AssetDetailClient({
   asset,
   transactions,
   allAssets,
+  stockHoldings = [],
+  stockPrices = [],
+  cashBalance = 0,
   errors,
 }: AssetDetailClientProps) {
   const [transactionSheet, setTransactionSheet] = useState<
@@ -99,11 +111,38 @@ export function AssetDetailClient({
     <div className="container mx-auto p-4 space-y-6 pb-24">
       <AssetHeader asset={asset} onEdit={() => setAssetFormSheetOpen(true)} />
 
-      <AssetTransactionList
-        transactions={transactions}
-        onEdit={handleEditTransaction}
-        onDelete={handleDeleteTransaction}
-      />
+      {/* STOCK 타입: 주식 보유내역 */}
+      {asset.type === "STOCK" ? (
+        <Tabs defaultValue="holdings" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="holdings">보유 종목</TabsTrigger>
+            <TabsTrigger value="transactions">거래 내역</TabsTrigger>
+          </TabsList>
+          <TabsContent value="holdings" className="mt-4">
+            <StockHoldingsList
+              assetId={asset.id}
+              holdings={stockHoldings}
+              prices={stockPrices}
+              cashBalance={cashBalance}
+            />
+          </TabsContent>
+          <TabsContent value="transactions" className="mt-4">
+            <AssetTransactionList
+              transactions={transactions}
+              currentAssetId={asset.id}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <AssetTransactionList
+          transactions={transactions}
+          currentAssetId={asset.id}
+          onEdit={handleEditTransaction}
+          onDelete={handleDeleteTransaction}
+        />
+      )}
 
       {/* 플로팅 버튼 */}
       <Button

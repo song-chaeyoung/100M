@@ -1,10 +1,10 @@
 # 일억모으기 (100M)
 
-Next.js 14 기반 가계부 애플리케이션. 목표 금액을 설정하고 수입/지출/저축을 관리하며 자산 달성률을 추적합니다.
+Next.js 16 기반 가계부 애플리케이션. 목표 금액을 설정하고 수입/지출/저축을 관리하며 자산 달성률을 추적합니다.
 
 ## 주요 기술 스택
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **UI Components**: shadcn/ui

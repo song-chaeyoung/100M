@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx db/seed.ts",
+    "db:sync-stocks": "tsx scripts/sync-stock-master.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -35,6 +36,7 @@
     "dayjs": "^1.11.19",
     "drizzle-orm": "^0.45.1",
     "embla-carousel-react": "^8.6.0",
+    "iconv-lite": "^0.7.2",
     "lucide-react": "^0.562.0",
     "next": "16.1.4",
     "next-auth": "^5.0.0-beta.30",

@@ -13,6 +13,7 @@ import { getTransactionsByMonth } from "@/lib/api/transactions";
 import type { TransactionSummary } from "@/lib/api/types";
 import type { Category } from "@/lib/api/categories";
 import { CalendarBottomSheet } from "./calendar-bottom-sheet";
+import { CategorySummary } from "./category-summary";
 
 interface MonthSlide {
   month: string;
@@ -55,14 +56,14 @@ export function Calendar({
 
   const loadMonthData = useCallback(async (month: string, index: number) => {
     try {
-      const data = await getTransactionsByMonth(month);
+      const result = await getTransactionsByMonth(month);
+      if (!result.success || !result.data) return [];
       setSlides((prev) => {
         const newSlides = [...prev];
-        if (!data.data) return prev;
-        newSlides[index] = { month, transactions: data.data };
+        newSlides[index] = { month, transactions: result.data! };
         return newSlides;
       });
-      return data.data || [];
+      return result.data;
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
       return [];
@@ -183,6 +184,8 @@ export function Calendar({
           </CarouselContent>
         </Carousel>
       </div>
+
+      <CategorySummary month={slides[1].month} />
 
       <CalendarBottomSheet
         open={isBottomSheetOpen}

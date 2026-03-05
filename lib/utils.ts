@@ -38,11 +38,16 @@ export const formatAmount = (value: string) => {
 };
 
 /**
- * 두 월 사이의 모든 월을 배열로 반환
- * @param startMonth 시작월 (YYYY-MM 형식)
- * @param endMonth 종료월 (YYYY-MM 형식)
- * @returns 월 배열 (예: ["2025-01", "2025-02", ...])
+ * 콤마가 포함된 문자열을 숫자로 파싱
+ * @param value 콤마가 포함된 문자열 (예: "1,000")
+ * @returns 파싱된 숫자
  */
+export const parseFormattedNumber = (value: string): number => {
+  if (!value) return 0;
+  const n = Number(value.replace(/,/g, ""));
+  return isNaN(n) ? 0 : n;
+};
+
 /**
  * 월(YYYY-MM)과 예정일로 유효한 날짜 문자열 생성
  * 해당 월의 마지막 날을 초과하지 않도록 클램핑
@@ -54,7 +59,16 @@ export function toScheduledDate(month: string, day: number): string {
   return `${month}-${String(clampedDay).padStart(2, "0")}`;
 }
 
-export function getMonthsBetween(startMonth: string, endMonth: string): string[] {
+/**
+ * 두 월 사이의 모든 월을 배열로 반환
+ * @param startMonth 시작월 (YYYY-MM 형식)
+ * @param endMonth 종료월 (YYYY-MM 형식)
+ * @returns 월 배열 (예: ["2025-01", "2025-02", ...])
+ */
+export function getMonthsBetween(
+  startMonth: string,
+  endMonth: string,
+): string[] {
   const months: string[] = [];
   let current = dayjs(startMonth).startOf("month");
   const end = dayjs(endMonth).startOf("month");

@@ -43,6 +43,27 @@
       "when": 1770167656551,
       "tag": "0005_hard_puck",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771915470452,
+      "tag": "0006_broken_gambit",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772504236295,
+      "tag": "0007_naive_miss_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772672940926,
+      "tag": "0008_sudden_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

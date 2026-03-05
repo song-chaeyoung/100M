@@ -1,3 +1,6 @@
-import { getTransactionsByMonth } from "@/app/actions/transactions";
+import {
+  getTransactionsByMonth,
+  getCategorySummaryByMonth,
+} from "@/app/actions/transactions";
 
-export { getTransactionsByMonth };
+export { getTransactionsByMonth, getCategorySummaryByMonth };

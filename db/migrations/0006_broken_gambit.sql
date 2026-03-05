@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "asset_transaction_fixed_saving_date_idx" ON "asset_transaction" USING btree ("fixed_saving_id","date") WHERE fixed_saving_id IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "transaction_fixed_expense_date_idx" ON "transaction" USING btree ("fixed_expense_id","date") WHERE fixed_expense_id IS NOT NULL;

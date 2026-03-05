@@ -30,6 +30,7 @@ export const assetResponseSchema = z.object({
   name: z.string(),
   type: z.string(),
   balance: z.string(),
+  cashBalance: z.string().default("0"),
   institution: z.string().nullable(),
   accountNumber: z.string().nullable(),
   interestRate: z.string().nullable(),

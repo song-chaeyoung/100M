@@ -67,8 +67,10 @@ vi.mock("next/cache", () => ({
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
   and: vi.fn(),
+  or: vi.fn(),
   desc: vi.fn(),
   lte: vi.fn(),
+  inArray: vi.fn(),
   sql: vi.fn(), // tagged template literal로 호출돼도 vi.fn()이 함수라 에러 안 남
 }));
 
@@ -137,6 +139,7 @@ describe("createAssetTransaction", () => {
     });
 
     expect(result.success).toBe(true);
+    if (!result.success) return;
     expect(result.data).toEqual({
       id: 10,
       type: "DEPOSIT",
@@ -201,11 +204,11 @@ describe("createAssetTransaction", () => {
   it("TRANSFER: 양쪽 자산 모두 존재하면 성공", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
 
-    // 첫 번째 limit: 출금 자산 존재
+    // 첫 번째 limit: 출금 자산 소유권 + type 확인
     mockDb.limit
-      .mockResolvedValueOnce([{ id: 1, userId: "user-1" }])
-      // 두 번째 limit: 입금 자산 존재
-      .mockResolvedValueOnce([{ id: 2, userId: "user-1" }]);
+      .mockResolvedValueOnce([{ id: 1, userId: "user-1", type: "CASH" }])
+      // 두 번째 limit: 입금 자산 소유권 + type 확인
+      .mockResolvedValueOnce([{ id: 2, userId: "user-1", type: "CASH" }]);
 
     // batch: TRANSFER는 3개 쿼리 [insert, fromBalance, toBalance]
     mockDb.batch.mockResolvedValueOnce([
@@ -275,6 +278,11 @@ describe("updateAssetTransaction", () => {
   it("일반 거래 수정 → 성공", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
 
+    // where: 1) existing 쿼리 체이닝용, 2) 자산 타입 조회 결과 반환
+    mockDb.where
+      .mockReturnValueOnce(mockDb) // existing 쿼리: .where().limit() 체이닝
+      .mockResolvedValueOnce([{ id: 1, type: "CASH" }]); // assetTypeInfos 쿼리 결과
+
     // limit(1): 기존 거래 (비고정, 비이체)
     mockDb.limit.mockResolvedValueOnce([
       {
@@ -303,6 +311,7 @@ describe("updateAssetTransaction", () => {
     });
 
     expect(result.success).toBe(true);
+    if (!result.success) return;
     expect(result.data).toEqual({
       id: 1,
       amount: "200000",
@@ -355,6 +364,11 @@ describe("deleteAssetTransaction", () => {
 
   it("일반 거래 삭제 → 성공", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
+    // where: 1) existing 쿼리 체이닝용, 2) 자산 타입 조회 결과 반환
+    mockDb.where
+      .mockReturnValueOnce(mockDb) // existing 쿼리: .where().limit() 체이닝
+      .mockResolvedValueOnce([{ id: 1, type: "CASH" }]); // deleteAssetTypeInfos 쿼리 결과
 
     mockDb.limit.mockResolvedValueOnce([
       {
