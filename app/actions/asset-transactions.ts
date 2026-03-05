@@ -384,7 +384,17 @@ export async function updateAssetTransaction(
       const assetTypeInfos = await db
         .select({ id: assets.id, type: assets.type })
         .from(assets)
-        .where(inArray(assets.id, assetIdsToFetch));
+        .where(
+          and(inArray(assets.id, assetIdsToFetch), eq(assets.userId, userId)),
+        );
+
+      if (assetTypeInfos.length !== assetIdsToFetch.length) {
+        return {
+          success: false,
+          error: "수정 대상 자산이 유효하지 않거나 접근 권한이 없습니다.",
+        };
+      }
+
       const assetTypeMap = new Map(assetTypeInfos.map((a) => [a.id, a.type]));
 
       const existingFromType = assetTypeMap.get(existing[0].assetId);
@@ -651,7 +661,20 @@ export async function deleteAssetTransaction(id: number) {
       const deleteAssetTypeInfos = await db
         .select({ id: assets.id, type: assets.type })
         .from(assets)
-        .where(inArray(assets.id, deleteAssetIdsToFetch));
+        .where(
+          and(
+            inArray(assets.id, deleteAssetIdsToFetch),
+            eq(assets.userId, userId),
+          ),
+        );
+
+      if (deleteAssetTypeInfos.length !== deleteAssetIdsToFetch.length) {
+        return {
+          success: false,
+          error: "삭제 대상 자산이 유효하지 않거나 접근 권한이 없습니다.",
+        };
+      }
+
       const deleteAssetTypeMap = new Map(
         deleteAssetTypeInfos.map((a) => [a.id, a.type]),
       );
