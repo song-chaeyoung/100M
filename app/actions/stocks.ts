@@ -596,9 +596,6 @@ export async function createStockHolding(data: CreateStockHoldingInput) {
         })
         .returning();
 
-      // 실시간 시세 기반으로 자산 잔액 자동 갱신
-      await syncAssetBalance(assetId, userId);
-
       // 가계부에 저축으로 기록 (체크한 경우)
       if (parsed.data.recordAsSaving && parsed.data.investmentKRW) {
         const txDate = parsed.data.purchaseDate ?? getTodayKST();
@@ -653,6 +650,9 @@ export async function createStockHolding(data: CreateStockHoldingInput) {
           })
           .where(eq(assets.id, assetId));
       }
+
+      // 모든 DB 변경 이후 실시간 시세 기반으로 자산 잔액 갱신
+      await syncAssetBalance(assetId, userId);
 
       revalidatePath("/assets");
       revalidatePath("/calendar");
