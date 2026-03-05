@@ -231,10 +231,6 @@ export async function syncAssetBalance(
         updatedAt: new Date(),
       })
       .where(eq(assets.id, assetId));
-
-    console.log(
-      `[syncAssetBalance] assetId=${assetId} stockEval=${Math.round(stockEval)} cash=${cashBal} balance=${Math.round(totalBalance)}`,
-    );
   } catch (err) {
     // 잔액 동기화 실패해도 보유내역 CRUD는 성공 처리
     console.error("[syncAssetBalance] error:", err);

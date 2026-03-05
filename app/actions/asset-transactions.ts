@@ -18,6 +18,22 @@ import { getBalanceOperation } from "@/lib/utils/asset-transaction";
 import { syncAssetBalance as syncStockBalance } from "./stocks";
 
 /**
+ * syncStockBalance를 안전하게 호출하는 헬퍼 팩토리.
+ * 핵심 DB 쓰기가 이미 커밋된 뒤 sync 실패로 success:false가 되는 것을 방지.
+ * 실패 시 에러 로그만 남기고 warnings 배열에 수집한다.
+ */
+function makeSafeSync(userId: string, warnings: string[]) {
+  return async (assetId: number) => {
+    try {
+      await syncStockBalance(assetId, userId);
+    } catch (e) {
+      console.error("[safeSync] Stock balance sync failed", { assetId, e });
+      warnings.push(`assetId=${assetId} 잔액 동기화 실패 (재시도 필요)`);
+    }
+  };
+}
+
+/**
  * 자산 거래 생성
  */
 export async function createAssetTransaction(data: AssetTransactionInput) {
@@ -121,9 +137,11 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
               .where(eq(assets.id, parsed.data.toAssetId)),
           ]);
           result = inserted;
-          await syncStockBalance(parsed.data.toAssetId, userId);
+          const syncWarningsCreate: string[] = [];
+          const safeSync = makeSafeSync(userId, syncWarningsCreate);
+          await safeSync(parsed.data.toAssetId);
           if (fromAssetType === "STOCK") {
-            await syncStockBalance(parsed.data.assetId, userId);
+            await safeSync(parsed.data.assetId);
           }
         } else if (fromAssetType === "STOCK") {
           // 출발지가 주식계좌 → cashBalance 감소
@@ -144,7 +162,11 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
               .where(eq(assets.id, parsed.data.toAssetId)),
           ]);
           result = inserted;
-          await syncStockBalance(parsed.data.assetId, userId);
+          const syncWarningsCreateFrom: string[] = [];
+          await makeSafeSync(
+            userId,
+            syncWarningsCreateFrom,
+          )(parsed.data.assetId);
         } else {
           // 일반 자산 → 기존 로직
           const [[inserted]] = await db.batch([
@@ -564,7 +586,9 @@ export async function updateAssetTransaction(
       );
       const updated = results[returningIndex][0];
 
-      // STOCK 관련 잔액 동기화
+      // STOCK 관련 잔액 동기화 (실패해도 수정 자체는 성공으로 반환)
+      const syncWarningsUpdate: string[] = [];
+      const safeSync = makeSafeSync(userId, syncWarningsUpdate);
       const stockAssetIds = new Set<number>();
       if (existingFromType === "STOCK") stockAssetIds.add(existing[0].assetId);
       if (existingToType === "STOCK" && existing[0].toAssetId)
@@ -573,7 +597,7 @@ export async function updateAssetTransaction(
       if (newToType === "STOCK" && newToAssetId)
         stockAssetIds.add(newToAssetId);
       for (const stockId of stockAssetIds) {
-        await syncStockBalance(stockId, userId);
+        await safeSync(stockId);
       }
 
       revalidatePath("/");
@@ -717,11 +741,12 @@ export async function deleteAssetTransaction(id: number) {
         batchQueries.push(deleteQuery);
         await db.batch(batchQueries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
 
-        // STOCK 잔액 동기화
-        if (existingFromType === "STOCK")
-          await syncStockBalance(existing[0].assetId, userId);
-        if (existingToType === "STOCK")
-          await syncStockBalance(existing[0].toAssetId, userId);
+        // STOCK 잔액 동기화 (실패해도 삭제 자체는 성공으로 반환)
+        const syncWarningsDelete: string[] = [];
+        const safeSync = makeSafeSync(userId, syncWarningsDelete);
+        if (existingFromType === "STOCK") await safeSync(existing[0].assetId);
+        if (existingToType === "STOCK" && existing[0].toAssetId)
+          await safeSync(existing[0].toAssetId);
       } else {
         const reverseQuery = db
           .update(assets)
