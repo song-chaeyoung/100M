@@ -45,7 +45,10 @@ export async function createFixedExpense(data: FixedExpenseInput) {
         .returning();
 
       // 2. 기간 내 예정 거래 생성
-      const months = getMonthsBetween(parsed.data.startDate, parsed.data.endDate);
+      const months = getMonthsBetween(
+        parsed.data.startDate,
+        parsed.data.endDate,
+      );
       const transactionsToInsert = months.map((month) => ({
         userId,
         type: "EXPENSE" as const,
@@ -59,7 +62,10 @@ export async function createFixedExpense(data: FixedExpenseInput) {
       }));
 
       if (transactionsToInsert.length > 0) {
-        await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
+        await db
+          .insert(transactions)
+          .values(transactionsToInsert)
+          .onConflictDoNothing();
       }
 
       const result = fixedExpense;
@@ -147,12 +153,7 @@ export async function getFixedExpenseById(id: number) {
         })
         .from(fixedExpenses)
         .leftJoin(categories, eq(fixedExpenses.categoryId, categories.id))
-        .where(
-          and(
-            eq(fixedExpenses.id, id),
-            eq(fixedExpenses.userId, userId),
-          ),
-        )
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
         .limit(1);
 
       return { success: true, data: result[0] || null };
@@ -175,12 +176,7 @@ export async function updateFixedExpense(
       const existing = await db
         .select()
         .from(fixedExpenses)
-        .where(
-          and(
-            eq(fixedExpenses.id, id),
-            eq(fixedExpenses.userId, userId),
-          ),
-        )
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
         .limit(1);
 
       if (!existing[0]) {
@@ -200,7 +196,10 @@ export async function updateFixedExpense(
       await db
         .delete(transactions)
         .where(
-          and(eq(transactions.fixedExpenseId, id), gte(transactions.date, today)),
+          and(
+            eq(transactions.fixedExpenseId, id),
+            gte(transactions.date, today),
+          ),
         );
 
       // 2. 고정 지출 업데이트
@@ -231,14 +230,22 @@ export async function updateFixedExpense(
       const [updated] = await db
         .update(fixedExpenses)
         .set(updateData)
-        .where(eq(fixedExpenses.id, id))
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
         .returning();
+
+      if (!updated) {
+        return {
+          success: false,
+          error: "고정 지출을 찾을 수 없거나 권한이 없습니다.",
+        };
+      }
 
       // 3. 새 조건으로 예정 거래 재생성 (활성 상태일 때만, 오늘 이후만)
       if (updated.isActive) {
         const startMonth =
           parsed.data.startDate || existing[0].startDate?.slice(0, 7);
-        const endMonth = parsed.data.endDate || existing[0].endDate?.slice(0, 7);
+        const endMonth =
+          parsed.data.endDate || existing[0].endDate?.slice(0, 7);
 
         if (startMonth && endMonth) {
           const scheduledDay =
@@ -249,10 +256,12 @@ export async function updateFixedExpense(
           const title = parsed.data.title ?? existing[0].title;
 
           // 오늘 이후 날짜의 월만 필터링
-          const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-            const date = toScheduledDate(month, scheduledDay);
-            return date >= today;
-          });
+          const months = getMonthsBetween(startMonth, endMonth).filter(
+            (month) => {
+              const date = toScheduledDate(month, scheduledDay);
+              return date >= today;
+            },
+          );
 
           const transactionsToInsert = months.map((month) => ({
             userId,
@@ -267,7 +276,10 @@ export async function updateFixedExpense(
           }));
 
           if (transactionsToInsert.length > 0) {
-            await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
+            await db
+              .insert(transactions)
+              .values(transactionsToInsert)
+              .onConflictDoNothing();
           }
         }
       }
@@ -293,12 +305,7 @@ export async function deleteFixedExpense(id: number) {
       const existing = await db
         .select()
         .from(fixedExpenses)
-        .where(
-          and(
-            eq(fixedExpenses.id, id),
-            eq(fixedExpenses.userId, userId),
-          ),
-        )
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
         .limit(1);
 
       if (!existing[0]) {
@@ -310,11 +317,24 @@ export async function deleteFixedExpense(id: number) {
       await db
         .delete(transactions)
         .where(
-          and(eq(transactions.fixedExpenseId, id), gte(transactions.date, today)),
+          and(
+            eq(transactions.fixedExpenseId, id),
+            gte(transactions.date, today),
+          ),
         );
 
       // 2. 고정 지출 삭제
-      await db.delete(fixedExpenses).where(eq(fixedExpenses.id, id));
+      const [deleted] = await db
+        .delete(fixedExpenses)
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
+        .returning();
+
+      if (!deleted) {
+        return {
+          success: false,
+          error: "고정 지출을 찾을 수 없거나 권한이 없습니다.",
+        };
+      }
 
       revalidatePath("/");
 
@@ -365,10 +385,12 @@ export async function toggleFixedExpenseActive(id: number) {
           const scheduledDay = existing[0].scheduledDay;
 
           // 오늘 이후 날짜의 월만 필터링
-          const months = getMonthsBetween(startMonth, endMonth).filter((month) => {
-            const date = toScheduledDate(month, scheduledDay);
-            return date >= today;
-          });
+          const months = getMonthsBetween(startMonth, endMonth).filter(
+            (month) => {
+              const date = toScheduledDate(month, scheduledDay);
+              return date >= today;
+            },
+          );
 
           const transactionsToInsert = months.map((month) => ({
             userId,
@@ -383,7 +405,10 @@ export async function toggleFixedExpenseActive(id: number) {
           }));
 
           if (transactionsToInsert.length > 0) {
-            await db.insert(transactions).values(transactionsToInsert).onConflictDoNothing();
+            await db
+              .insert(transactions)
+              .values(transactionsToInsert)
+              .onConflictDoNothing();
           }
         }
       }
@@ -394,8 +419,15 @@ export async function toggleFixedExpenseActive(id: number) {
           isActive: newIsActive,
           updatedAt: new Date(),
         })
-        .where(eq(fixedExpenses.id, id))
+        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
         .returning();
+
+      if (!result) {
+        return {
+          success: false,
+          error: "고정 지출을 찾을 수 없거나 권한이 없습니다.",
+        };
+      }
 
       revalidatePath("/");
 
