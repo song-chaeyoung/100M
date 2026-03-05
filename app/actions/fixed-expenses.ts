@@ -13,6 +13,22 @@ import { z } from "zod";
 import { getMonthsBetween, toScheduledDate } from "@/lib/utils";
 import dayjs from "dayjs";
 
+async function ensureOwnedExpenseCategory(userId: string, categoryId: number) {
+  const [category] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(categories.userId, userId),
+        eq(categories.type, "EXPENSE"),
+      ),
+    )
+    .limit(1);
+
+  return !!category;
+}
+
 /**
  * 고정 지출 생성 (+ 예정 거래 자동 생성)
  */
@@ -25,6 +41,10 @@ export async function createFixedExpense(data: FixedExpenseInput) {
           success: false,
           error: z.flattenError(parsed.error).fieldErrors,
         };
+      }
+
+      if (!(await ensureOwnedExpenseCategory(userId, parsed.data.categoryId))) {
+        return { success: false, error: "유효하지 않은 카테고리입니다." };
       }
 
       // 1. 고정 지출 생성
@@ -189,6 +209,13 @@ export async function updateFixedExpense(
           success: false,
           error: z.flattenError(parsed.error).fieldErrors,
         };
+      }
+
+      if (
+        parsed.data.categoryId !== undefined &&
+        !(await ensureOwnedExpenseCategory(userId, parsed.data.categoryId))
+      ) {
+        return { success: false, error: "유효하지 않은 카테고리입니다." };
       }
 
       // 1. 미래 날짜의 고정 지출 거래 삭제 (오늘 이후)
