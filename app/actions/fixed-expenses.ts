@@ -348,6 +348,12 @@ export async function deleteFixedExpense(id: number) {
 
 /**
  * 고정 지출 활성/비활성 토글 (+ 비활성화 시 미확정 거래 삭제)
+ *
+ * CAS(Compare-And-Swap) 패턴 적용:
+ * 1. UPDATE를 먼저 실행하고, WHERE 조건에 현재 isActive 값을 포함시켜
+ *    상태가 바뀌지 않은 경우에만 업데이트가 성공하도록 한다.
+ * 2. UPDATE가 0건이면 다른 요청이 먼저 처리한 것이므로 즉시 반환한다.
+ * 3. UPDATE에 성공한 요청만 부수효과(거래 삭제/재생성)를 실행한다.
  */
 export async function toggleFixedExpenseActive(id: number) {
   return withAuth(async (userId) => {
@@ -362,8 +368,38 @@ export async function toggleFixedExpenseActive(id: number) {
         return { success: false, error: "고정 지출을 찾을 수 없습니다." };
       }
 
-      const newIsActive = !existing[0].isActive;
+      const currentIsActive = existing[0].isActive;
+      const newIsActive = !currentIsActive;
 
+      // ── CAS UPDATE ─────────────────────────────────────────────────────────
+      // WHERE 절에 eq(fixedExpenses.isActive, currentIsActive)를 추가해
+      // 읽은 시점과 상태가 동일할 때만 업데이트가 성공한다.
+      // 동시 요청 중 하나만 성공하고, 나머지는 0건 반환(result = undefined).
+      const [result] = await db
+        .update(fixedExpenses)
+        .set({
+          isActive: newIsActive,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(fixedExpenses.id, id),
+            eq(fixedExpenses.userId, userId),
+            eq(fixedExpenses.isActive, currentIsActive), // CAS 조건
+          ),
+        )
+        .returning();
+
+      if (!result) {
+        // 다른 요청이 이미 상태를 변경했거나, 레코드가 없는 경우
+        return {
+          success: false,
+          error: "상태가 이미 변경되었습니다. 페이지를 새로고침해 주세요.",
+        };
+      }
+      // ───────────────────────────────────────────────────────────────────────
+
+      // UPDATE에 성공한 요청만 부수효과를 실행한다 (정확히 한 번 보장)
       if (!newIsActive) {
         // 비활성화 시 미래 날짜의 거래 삭제
         const today = dayjs().format("YYYY-MM-DD");
@@ -411,22 +447,6 @@ export async function toggleFixedExpenseActive(id: number) {
               .onConflictDoNothing();
           }
         }
-      }
-
-      const [result] = await db
-        .update(fixedExpenses)
-        .set({
-          isActive: newIsActive,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(fixedExpenses.id, id), eq(fixedExpenses.userId, userId)))
-        .returning();
-
-      if (!result) {
-        return {
-          success: false,
-          error: "고정 지출을 찾을 수 없거나 권한이 없습니다.",
-        };
       }
 
       revalidatePath("/");
