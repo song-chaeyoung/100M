@@ -123,7 +123,7 @@ export async function syncAssetBalance(
           balance: assetRow?.cashBalance ?? "0",
           updatedAt: new Date(),
         })
-        .where(eq(assets.id, assetId));
+        .where(and(eq(assets.id, assetId), eq(assets.userId, userId)));
       return;
     }
 
@@ -230,7 +230,7 @@ export async function syncAssetBalance(
         balance: Math.round(totalBalance).toString(),
         updatedAt: new Date(),
       })
-      .where(eq(assets.id, assetId));
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)));
   } catch (err) {
     // 잔액 동기화 실패해도 보유내역 CRUD는 성공 처리
     console.error("[syncAssetBalance] error:", err);
@@ -302,7 +302,12 @@ export async function buyMoreStockHolding(data: BuyMoreStockHoldingInput) {
           avgPrice: newAvg.toFixed(2),
           updatedAt: new Date(),
         })
-        .where(eq(stockHoldings.id, holdingId));
+        .where(
+          and(
+            eq(stockHoldings.id, holdingId),
+            eq(stockHoldings.userId, userId),
+          ),
+        );
 
       // ③ assetTransaction (WITHDRAW) 생성 - 매수 = 예수금 출금
       const memo = `주식 추매: ${existing.stockName} ${quantity}주`;
@@ -355,6 +360,7 @@ export async function buyMoreStockHolding(data: BuyMoreStockHoldingInput) {
         .where(
           and(
             eq(assets.id, existing.assetId),
+            eq(assets.userId, userId),
             sql`${assets.cashBalance}::numeric >= ${investmentKRW}`,
           ),
         )
@@ -364,17 +370,32 @@ export async function buyMoreStockHolding(data: BuyMoreStockHoldingInput) {
         // 잔액 부족 시 롤백
         await db
           .delete(transactions)
-          .where(eq(transactions.linkedAssetTransactionId, assetTx.id));
+          .where(
+            and(
+              eq(transactions.linkedAssetTransactionId, assetTx.id),
+              eq(transactions.userId, userId),
+            ),
+          );
         await db
           .delete(assetTransactions)
-          .where(eq(assetTransactions.id, assetTx.id));
+          .where(
+            and(
+              eq(assetTransactions.id, assetTx.id),
+              eq(assetTransactions.userId, userId),
+            ),
+          );
         await db
           .update(stockHoldings)
           .set({
             quantity: existing.quantity,
             avgPrice: existing.avgPrice,
           })
-          .where(eq(stockHoldings.id, holdingId));
+          .where(
+            and(
+              eq(stockHoldings.id, holdingId),
+              eq(stockHoldings.userId, userId),
+            ),
+          );
 
         return {
           success: false,
@@ -451,7 +472,14 @@ export async function sellPartialStockHolding(
 
       if (remainQty === 0) {
         // 전량 매도 → 보유내역 삭제
-        await db.delete(stockHoldings).where(eq(stockHoldings.id, holdingId));
+        await db
+          .delete(stockHoldings)
+          .where(
+            and(
+              eq(stockHoldings.id, holdingId),
+              eq(stockHoldings.userId, userId),
+            ),
+          );
       } else {
         // 분할매도 → 수량만 차감, 평단가 유지
         await db
@@ -460,7 +488,12 @@ export async function sellPartialStockHolding(
             quantity: remainQty.toString(),
             updatedAt: new Date(),
           })
-          .where(eq(stockHoldings.id, holdingId));
+          .where(
+            and(
+              eq(stockHoldings.id, holdingId),
+              eq(stockHoldings.userId, userId),
+            ),
+          );
       }
 
       // ② AssetTransaction (DEPOSIT) 생성 - 매도 = 예수금 입금
@@ -510,7 +543,7 @@ export async function sellPartialStockHolding(
         .set({
           cashBalance: sql`${assets.cashBalance}::numeric + ${proceedsKRW}`,
         })
-        .where(eq(assets.id, existing.assetId));
+        .where(and(eq(assets.id, existing.assetId), eq(assets.userId, userId)));
 
       // ⑥ 잔액 동기화
       await syncAssetBalance(existing.assetId, userId);
@@ -676,6 +709,7 @@ export async function createStockHolding(data: CreateStockHoldingInput) {
           .where(
             and(
               eq(assets.id, assetId),
+              eq(assets.userId, userId),
               sql`${assets.cashBalance}::numeric >= ${parsed.data.investmentKRW}`,
             ),
           )
@@ -685,11 +719,28 @@ export async function createStockHolding(data: CreateStockHoldingInput) {
           // 잔액 부족으로 업데이트 실패 시 롤백 (TOCTOU 방어)
           await db
             .delete(transactions)
-            .where(eq(transactions.linkedAssetTransactionId, assetTx.id));
+            .where(
+              and(
+                eq(transactions.linkedAssetTransactionId, assetTx.id),
+                eq(transactions.userId, userId),
+              ),
+            );
           await db
             .delete(assetTransactions)
-            .where(eq(assetTransactions.id, assetTx.id));
-          await db.delete(stockHoldings).where(eq(stockHoldings.id, result.id));
+            .where(
+              and(
+                eq(assetTransactions.id, assetTx.id),
+                eq(assetTransactions.userId, userId),
+              ),
+            );
+          await db
+            .delete(stockHoldings)
+            .where(
+              and(
+                eq(stockHoldings.id, result.id),
+                eq(stockHoldings.userId, userId),
+              ),
+            );
 
           return {
             success: false,
@@ -747,7 +798,7 @@ export async function updateStockHolding(
           ...(d.memo !== undefined && { memo: d.memo ?? null }),
           updatedAt: new Date(),
         })
-        .where(eq(stockHoldings.id, id))
+        .where(and(eq(stockHoldings.id, id), eq(stockHoldings.userId, userId)))
         .returning();
 
       // 실시간 시세 기반으로 자산 잔액 자동 갱신
@@ -779,7 +830,9 @@ export async function deleteStockHolding(id: number) {
       }
 
       const { assetId } = existing[0];
-      await db.delete(stockHoldings).where(eq(stockHoldings.id, id));
+      await db
+        .delete(stockHoldings)
+        .where(and(eq(stockHoldings.id, id), eq(stockHoldings.userId, userId)));
 
       // 삭제 후 실시간 시세 기반으로 자산 잔액 자동 갱신
       await syncAssetBalance(assetId, userId);
