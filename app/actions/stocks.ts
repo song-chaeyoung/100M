@@ -85,9 +85,13 @@ function calcTotalBalance<P extends PriceForBalance>(
       let fallbackPrice = Number(h.avgPrice);
       // US 주식이면 DB 시세 혹은 캐시 시세가 없을 때 원화로 변환해줘야 함
       if (h.currency === "USD") {
-        fallbackPrice *= Number(
-          p?.exchangeRate ?? fallbackExchangeRate ?? 1400,
-        );
+        const exchangeRate = Number(p?.exchangeRate);
+        const normalizedExchangeRate =
+          Number.isFinite(exchangeRate) && exchangeRate > 0
+            ? exchangeRate
+            : (fallbackExchangeRate ?? 1400);
+
+        fallbackPrice *= normalizedExchangeRate;
       }
       total += fallbackPrice * qty;
     }
