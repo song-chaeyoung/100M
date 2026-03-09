@@ -57,6 +57,21 @@ export const assetFormSchema = z.object({
   institution: z.string().optional(),
   accountNumber: z.string().optional(),
   interestRate: z.string().optional(),
+
+  // Stock specific fields (array for multiple initial stocks)
+  stocks: z
+    .array(
+      z.object({
+        stockCode: z.string().min(1, "종목을 선택하세요"),
+        stockName: z.string(),
+        country: z.string(),
+        market: z.string(),
+        quantity: z.string().min(1, "수량을 입력하세요"),
+        avgPrice: z.string().min(1, "평단가를 입력하세요"),
+      }),
+    )
+    .optional(),
+  recordAsSaving: z.boolean().optional(),
 });
 
 export type AssetInput = z.infer<typeof assetSchema>;
