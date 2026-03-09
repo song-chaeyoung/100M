@@ -65,6 +65,7 @@ type PriceForBalance = {
 function calcTotalBalance<P extends PriceForBalance>(
   holdings: HoldingForBalance[],
   priceMap: Map<string, P>,
+  fallbackExchangeRate: number | null = 1400,
 ): number {
   let total = 0;
   for (const h of holdings) {
@@ -81,7 +82,18 @@ function calcTotalBalance<P extends PriceForBalance>(
         Math.round(Number(p.currentPrice) * Number(p.exchangeRate)) * qty;
     } else {
       // 최종 fallback: 평단가 기준
-      total += Number(h.avgPrice) * qty;
+      let fallbackPrice = Number(h.avgPrice);
+      // US 주식이면 DB 시세 혹은 캐시 시세가 없을 때 원화로 변환해줘야 함
+      if (h.currency === "USD") {
+        const exchangeRate = Number(p?.exchangeRate);
+        const normalizedExchangeRate =
+          Number.isFinite(exchangeRate) && exchangeRate > 0
+            ? exchangeRate
+            : (fallbackExchangeRate ?? 1400);
+
+        fallbackPrice *= normalizedExchangeRate;
+      }
+      total += fallbackPrice * qty;
     }
   }
   return total;
@@ -166,11 +178,12 @@ export async function syncAssetBalance(
       freshPrices.push(...krPrices);
     }
 
-    if (missingUS.length > 0) {
-      const US_MARKETS = new Set(["NYSE", "NASDAQ", "AMEX"]);
+    const hasUS = holdings.some((h) => h.country === "US");
+    let recentExchangeRate: string | null = null;
 
+    if (hasUS) {
       // fallback 환율: DB에서 가장 최근 환율 조회
-      const recentExchangeRate = await db
+      recentExchangeRate = await db
         .select({ exchangeRate: stockPrices.exchangeRate })
         .from(stockPrices)
         .where(
@@ -182,6 +195,10 @@ export async function syncAssetBalance(
         .orderBy(sql`${stockPrices.updatedAt} DESC`)
         .limit(1)
         .then((rows) => rows[0]?.exchangeRate ?? null);
+    }
+
+    if (missingUS.length > 0) {
+      const US_MARKETS = new Set(["NYSE", "NASDAQ", "AMEX"]);
 
       const usPrices = await fetchUSStockPricesWithQueue(
         missingUS.map((h) => ({
@@ -213,7 +230,11 @@ export async function syncAssetBalance(
       allPrices.map((p) => [`${p.stockCode}:${p.country}`, p]),
     );
 
-    const stockEval = calcTotalBalance(holdings, priceMap);
+    const stockEval = calcTotalBalance(
+      holdings,
+      priceMap,
+      recentExchangeRate ? Number(recentExchangeRate) : null,
+    );
 
     // 5. cashBalance 조회 후 balance = 주식평가 + 예수금
     const [assetRow] = await db
