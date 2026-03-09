@@ -101,7 +101,9 @@ export function AssetFormSheet({
 
       const hasStockInfo =
         data.type === "STOCK" && data.stocks && data.stocks.length > 0;
-      if (hasStockInfo && !isEditMode) {
+
+      // STOCK 타입 자산 신규 생성 시 종목 유무에 상관없이 초기 잔액 무조건 0으로 강제
+      if (data.type === "STOCK" && !isEditMode) {
         initialBalance = 0;
       }
 
@@ -230,7 +232,12 @@ export function AssetFormSheet({
                     {ASSET_TYPE_OPTIONS.map((option) => (
                       <div
                         key={option.value}
-                        onClick={() => field.onChange(option.value)}
+                        onClick={() => {
+                          field.onChange(option.value);
+                          if (option.value === "STOCK" && !isEditMode) {
+                            setValue("balance", "0", { shouldDirty: true });
+                          }
+                        }}
                         className={cn(
                           "text-center p-3 border rounded-lg cursor-pointer hover:bg-accent transition-colors",
                           field.value === option.value &&
