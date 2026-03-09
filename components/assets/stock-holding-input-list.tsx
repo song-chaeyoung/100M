@@ -143,9 +143,15 @@ export function StockHoldingInputList({
                         type="text"
                         inputMode="decimal"
                         value={controllerField.value}
-                        onChange={(e) =>
-                          controllerField.onChange(e.target.value)
-                        }
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (country === "US") {
+                            if (/^\d*\.?\d{0,4}$/.test(raw))
+                              controllerField.onChange(raw);
+                          } else {
+                            controllerField.onChange(formatAmount(raw));
+                          }
+                        }}
                         placeholder="0"
                         className="text-right pr-10"
                       />
@@ -159,19 +165,26 @@ export function StockHoldingInputList({
             </div>
 
             {/* 자동계산 평가금액 요약 */}
-            {quantity && avgPrice && country === "KR" ? (
+            {quantity && avgPrice ? (
               <div className="bg-muted/40 border-t mx-[-16px] mb-[-16px] p-3 px-4 rounded-b-xl flex items-center justify-between text-sm mt-4">
                 <span className="text-muted-foreground">초기 평가 금액</span>
                 <span className="font-semibold text-primary">
-                  {formatAmount(
-                    String(
-                      Math.round(
+                  {country === "KR"
+                    ? `${formatAmount(
+                        String(
+                          Math.round(
+                            Number(quantity.replace(/,/g, "")) *
+                              Number(avgPrice.replace(/,/g, "")),
+                          ),
+                        ),
+                      )} 원`
+                    : `${(
                         Number(quantity.replace(/,/g, "")) *
-                          Number(avgPrice.replace(/,/g, "")),
-                      ),
-                    ),
-                  )}{" "}
-                  원
+                        Number(avgPrice.replace(/,/g, ""))
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} USD`}
                 </span>
               </div>
             ) : null}

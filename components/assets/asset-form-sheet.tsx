@@ -386,7 +386,6 @@ export function AssetFormSheet({
                 type="button"
                 variant="secondary"
                 onClick={handleSubmit((data) => {
-                  setValue("stocks", []);
                   return onSubmit({ ...data, stocks: [] });
                 })}
                 className="flex-1"
