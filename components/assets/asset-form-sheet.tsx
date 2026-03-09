@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, formatAmount } from "@/lib/utils";
-import { createAsset, updateAsset } from "@/app/actions/assets";
+import { createAsset, updateAsset, deleteAsset } from "@/app/actions/assets";
 import { toast } from "sonner";
 import {
   Asset,
@@ -130,9 +130,11 @@ export function AssetFormSheet({
           const parseFormattedNumber = (val: string) =>
             Number(val.replace(/,/g, ""));
 
+          const failedStocks: string[] = [];
+
           for (const stock of data.stocks!) {
             if (stock.stockCode && stock.quantity && stock.avgPrice) {
-              await createStockHolding({
+              const stockResult = await createStockHolding({
                 assetId: result.data.id,
                 stockCode: stock.stockCode,
                 stockName: stock.stockName!,
@@ -147,9 +149,20 @@ export function AssetFormSheet({
                 avgPrice: parseFormattedNumber(stock.avgPrice),
                 currency: stock.country === "US" ? "USD" : "KRW",
                 memo: "초기 자산 등록",
-                recordAsSaving: false, // Do not deduct cash balance
+                recordAsSaving: false,
               });
+
+              if (!stockResult?.success) {
+                failedStocks.push(stock.stockName || stock.stockCode);
+              }
             }
+          }
+
+          if (failedStocks.length > 0) {
+            await deleteAsset(result.data.id);
+            toast.error(
+              `일부 종목(${failedStocks.join(", ")}) 등록에 실패하여 자산 생성이 취소되었습니다.`,
+            );
           }
         }
 
