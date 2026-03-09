@@ -165,6 +165,7 @@ export function AssetFormSheet({
             toast.error(
               `일부 종목(${failedStocks.join(", ")}) 등록에 실패하여 자산 생성이 취소되었습니다.`,
             );
+            return;
           }
         }
 
