@@ -65,6 +65,8 @@ export function AssetFormSheet({
           institution: editingAsset.institution || "",
           accountNumber: editingAsset.accountNumber || "",
           interestRate: editingAsset.interestRate || "",
+          stocks: [],
+          recordAsSaving: false,
         });
       } else {
         reset({
