@@ -10,6 +10,7 @@ import { Asset } from "@/lib/validations/asset";
 const ASSET_TYPE_LABELS: Record<string, string> = {
   SAVINGS: "예금",
   DEPOSIT: "적금",
+  CHECKING: "입출금통장",
   STOCK: "주식",
   FUND: "펀드",
   CRYPTO: "암호화폐",
@@ -20,6 +21,7 @@ const ASSET_TYPE_LABELS: Record<string, string> = {
 const ASSET_TYPE_ICONS: Record<string, string> = {
   SAVINGS: "🏦",
   DEPOSIT: "💰",
+  CHECKING: "💳",
   STOCK: "📈",
   FUND: "📊",
   CRYPTO: "🪙",

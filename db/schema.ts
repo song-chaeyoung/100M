@@ -37,6 +37,7 @@ export const fixedExpenseTypeEnum = pgEnum("fixed_expense_type", [
 export const assetTypeEnum = pgEnum("asset_type", [
   "SAVINGS", // 예금
   "DEPOSIT", // 적금
+  "CHECKING", // 입출금통장
   "STOCK", // 주식
   "FUND", // 펀드
   "CRYPTO", // 암호화폐
