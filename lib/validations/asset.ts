@@ -4,6 +4,7 @@ import { z } from "zod";
 export const assetTypeSchema = z.enum([
   "SAVINGS",
   "DEPOSIT",
+  "CHECKING",
   "STOCK",
   "FUND",
   "CRYPTO",

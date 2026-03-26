@@ -64,6 +64,13 @@
       "when": 1772672940926,
       "tag": "0008_sudden_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774500298688,
+      "tag": "0009_slimy_sue_storm",
+      "breakpoints": true
     }
   ]
 }
