@@ -18,7 +18,6 @@ import { toast } from "sonner";
 
 export default function MorePage() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [goal, setGoal] = useState<GoalData | undefined>(undefined);
 
   // 모달 상태
@@ -40,7 +39,6 @@ export default function MorePage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
     fetchGoal();
   }, [fetchGoal]);
 
@@ -126,7 +124,7 @@ export default function MorePage() {
               <div className="mb-3 text-base">다크 모드</div>
               <div className="flex gap-2">
                 <Button
-                  variant={mounted && theme === "light" ? "default" : "outline"}
+                  variant={theme === "light" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("light")}
                   className="flex-1"
@@ -135,7 +133,7 @@ export default function MorePage() {
                   라이트
                 </Button>
                 <Button
-                  variant={mounted && theme === "dark" ? "default" : "outline"}
+                  variant={theme === "dark" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("dark")}
                   className="flex-1"
@@ -144,9 +142,7 @@ export default function MorePage() {
                   다크
                 </Button>
                 <Button
-                  variant={
-                    mounted && theme === "system" ? "default" : "outline"
-                  }
+                  variant={theme === "system" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setTheme("system")}
                   className="flex-1"
@@ -176,6 +172,14 @@ export default function MorePage() {
                 className="block cursor-pointer py-2 text-base hover:text-primary"
               >
                 개인정보 처리방침
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/more/delete-account"
+                className="block cursor-pointer py-2 text-base text-red-500 hover:text-red-600"
+              >
+                회원 탈퇴
               </Link>
             </li>
             <li
