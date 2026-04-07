@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Kakao from "next-auth/providers/kakao";
+import Apple from "next-auth/providers/apple";
 
 export const authConfig = {
   providers: [
@@ -11,6 +12,11 @@ export const authConfig = {
     Kakao({
       clientId: process.env.KAKAO_CLIENT_ID!,
       clientSecret: process.env.KAKAO_CLIENT_SECRET!,
+    }),
+    Apple({
+      clientId: (process.env.AUTH_APPLE_ID ?? process.env.APPLE_CLIENT_ID)!,
+      clientSecret:
+        (process.env.AUTH_APPLE_SECRET ?? process.env.APPLE_CLIENT_SECRET)!,
     }),
   ],
   pages: {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -11,12 +11,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background p-4">
       <div className="flex flex-1 flex-col justify-center">
-        {/* 헤더 */}
         <div className="mb-8 text-center">
           <Image
             src="/logo.PNG"
-            alt="logo"
-            className="w-20 h-20 mx-auto"
+            alt="일억모으기 로고"
+            className="mx-auto h-20 w-20"
             width={80}
             height={80}
           />
@@ -26,7 +25,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* 로그인 버튼들 */}
         <div className="space-y-3">
           <form
             action={async () => {
@@ -83,13 +81,34 @@ export default function LoginPage() {
               카카오로 계속하기
             </Button>
           </form>
+
+          <form
+            action={async () => {
+              "use server";
+              await signIn("apple", { redirectTo: "/" });
+            }}
+          >
+            <Button
+              type="submit"
+              className="w-full border border-border bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+              size="default"
+            >
+              <svg
+                className="mr-2 h-5 w-5"
+                viewBox="0 0 384 512"
+                fill="currentColor"
+              >
+                <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50.5-85.1-19-27.8-47.5-43.1-85.3-46-35.8-2.8-74.8 20.9-89.1 20.9-15.1 0-49.7-19.9-77-19.9C62.3 138.9 0 183.2 0 273.8c0 26.8 4.9 54.5 14.8 83.1 13.2 37.8 61.1 130.4 111 128.9 26.1-.6 44.6-18.6 78.5-18.6 32.9 0 50 18.6 79.1 18.6 50.4-.7 93.9-84.5 106.4-122.4-73.7-34.7-71.1-92.1-71.1-94.7zM261.8 86.2c27.2-32.3 24.7-61.6 23.9-72.2-24 .9-51.8 16.4-67.6 35.6-17.4 20.8-27.6 46.5-25.4 74 26.1 2 50.3-11.1 69.1-37.4z" />
+              </svg>
+              Apple로 계속하기
+            </Button>
+          </form>
         </div>
       </div>
 
-      {/* 하단 약관 */}
       <div className="mt-8 text-center">
         <p className="text-xs text-muted-foreground">
-          로그인하면{" "}
+          로그인하시면{" "}
           <a href="/terms" className="underline">
             서비스 약관
           </a>{" "}
