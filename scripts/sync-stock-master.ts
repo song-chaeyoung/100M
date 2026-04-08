@@ -117,9 +117,10 @@ function parseKRMaster(mstBuffer: Buffer, market: KRMarket): NewStockMaster[] {
       .replace(/\s+/g, "");
     if (!stockCode || stockCode.length < 5) continue;
 
-    // 증권그룹구분코드 (offset 61, 2 bytes) — "ST"는 주식, "EF"는 ETF
+    // 증권그룹구분코드 (offset 61, 2 bytes) — "ST"는 주식, "EF"는 ETF, "EN"은 ETN
     const groupCode = line.slice(61, 63).toString("ascii");
-    if (groupCode !== "ST" && groupCode !== "EF") continue;
+    if (groupCode !== "ST" && groupCode !== "EF" && groupCode !== "EN")
+      continue;
 
     // 한글종목명 (offset 21, 40 bytes)
     const stockName = iconv.decode(line.slice(21, 61), "euc-kr").trim();
