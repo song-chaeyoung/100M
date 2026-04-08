@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 interface ExchangeRateState {
-  rate: number | null; // USD → KRW 환율
+  rate: number | null; // USD -> KRW 환율
   date: string | null; // ECB 기준 날짜 (YYYY-MM-DD)
   isLoading: boolean;
   error: string | null;
@@ -15,26 +15,25 @@ export const useExchangeRateStore = create<ExchangeRateState>((set, get) => ({
   error: null,
 
   fetchRate: async () => {
-    // 이미 로드된 경우 재호출 방지
+    // 이미 로드했거나 로딩중이면 중복 호출 방지
     if (get().rate !== null || get().isLoading) return;
 
     set({ isLoading: true, error: null });
 
     try {
-      const res = await fetch(
-        "https://api.frankfurter.app/latest?from=USD&to=KRW",
-      );
+      const res = await fetch("/api/exchange-rate");
       if (!res.ok) throw new Error("환율 조회 실패");
 
       const data = (await res.json()) as {
-        amount: number;
-        base: string;
+        rate: number;
         date: string;
-        rates: { KRW: number };
       };
+      if (!Number.isFinite(data.rate) || !data.date) {
+        throw new Error("환율 응답 값이 유효하지 않습니다.");
+      }
 
       set({
-        rate: data.rates.KRW,
+        rate: data.rate,
         date: data.date,
         isLoading: false,
       });
