@@ -7,6 +7,11 @@ import {
   getStockHoldingsByAsset,
   getStockPricesForAsset,
 } from "@/app/actions/stocks";
+import {
+  getGoldTradesByAsset,
+  getLatestGoldPriceWithFallback,
+  getGoldRealizedProfitTotal,
+} from "@/app/actions/gold";
 import { AssetDetailClient } from "@/components/assets/asset-detail-client";
 import { handleApiResults } from "@/lib/utils/api-handler";
 import type { Asset } from "@/lib/validations/asset";
@@ -14,6 +19,14 @@ import type { AssetTransaction } from "@/lib/validations/asset-transaction";
 import type { StockPriceResponse } from "@/lib/validations/stock";
 import { stockHoldingResponseSchema } from "@/lib/validations/stock";
 import type { StockHoldingResponse } from "@/lib/validations/stock";
+import type {
+  GoldPriceSnapshot,
+  GoldTradeResponse,
+} from "@/lib/validations/gold";
+import {
+  goldPriceSnapshotSchema,
+  goldTradeResponseSchema,
+} from "@/lib/validations/gold";
 
 export const metadata: Metadata = {
   title: "자산 상세",
@@ -50,6 +63,9 @@ export default async function AssetDetailPage({
   let stockHoldings: StockHoldingResponse[] = [];
   let stockPrices: StockPriceResponse[] = [];
   let cashBalance = 0;
+  let goldTrades: GoldTradeResponse[] = [];
+  let goldPriceSnapshot: GoldPriceSnapshot | null = null;
+  let goldRealizedProfitTotal = 0;
 
   if (asset?.type === "STOCK") {
     const [holdingsResult, pricesResult] = await Promise.allSettled([
@@ -73,6 +89,28 @@ export default async function AssetDetailPage({
     cashBalance = Number(asset?.cashBalance ?? 0);
   }
 
+  if (asset?.type === "GOLD") {
+    const [tradesResult, priceResult, realizedResult] = await Promise.allSettled([
+      getGoldTradesByAsset(assetIdNum),
+      getLatestGoldPriceWithFallback(),
+      getGoldRealizedProfitTotal(assetIdNum),
+    ]);
+
+    if (tradesResult.status === "fulfilled" && tradesResult.value?.success) {
+      goldTrades = goldTradeResponseSchema
+        .array()
+        .parse(tradesResult.value.data ?? []);
+    }
+
+    if (priceResult.status === "fulfilled" && priceResult.value?.success) {
+      goldPriceSnapshot = goldPriceSnapshotSchema.parse(priceResult.value.data);
+    }
+
+    if (realizedResult.status === "fulfilled" && realizedResult.value?.success) {
+      goldRealizedProfitTotal = Number(realizedResult.value.data ?? 0);
+    }
+  }
+
   return (
     <AssetDetailClient
       asset={asset}
@@ -81,6 +119,9 @@ export default async function AssetDetailPage({
       stockHoldings={stockHoldings}
       stockPrices={stockPrices}
       cashBalance={cashBalance}
+      goldTrades={goldTrades}
+      goldPriceSnapshot={goldPriceSnapshot}
+      goldRealizedProfitTotal={goldRealizedProfitTotal}
       errors={errors.length > 0 ? errors : undefined}
     />
   );

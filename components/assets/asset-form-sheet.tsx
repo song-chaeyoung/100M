@@ -41,6 +41,7 @@ export function AssetFormSheet({
       institution: "",
       accountNumber: "",
       interestRate: "",
+      goldGram: "",
       // Stock specific
       stocks: [],
       recordAsSaving: false,
@@ -65,6 +66,10 @@ export function AssetFormSheet({
           institution: editingAsset.institution || "",
           accountNumber: editingAsset.accountNumber || "",
           interestRate: editingAsset.interestRate || "",
+          goldGram:
+            editingAsset.type === "GOLD"
+              ? String(Number(editingAsset.goldGram || "0"))
+              : "",
           stocks: [],
           recordAsSaving: false,
         });
@@ -76,6 +81,7 @@ export function AssetFormSheet({
           institution: "",
           accountNumber: "",
           interestRate: "",
+          goldGram: "",
           stocks: [],
           recordAsSaving: false,
         });
@@ -100,12 +106,13 @@ export function AssetFormSheet({
   const onSubmit = async (data: AssetFormValues) => {
     try {
       let initialBalance = Number(data.balance.replace(/,/g, "")) || 0;
+      const initialGoldGram = Number(data.goldGram?.replace(/,/g, "")) || 0;
 
       const hasStockInfo =
         data.type === "STOCK" && data.stocks && data.stocks.length > 0;
 
-      // STOCK 타입 자산 신규 생성 시 종목 유무에 상관없이 초기 잔액 무조건 0으로 강제
-      if (data.type === "STOCK" && !isEditMode) {
+      // STOCK/GOLD 타입은 평가값으로 잔액이 계산되므로 신규 생성 시 초기 잔액 0 고정
+      if ((data.type === "STOCK" || data.type === "GOLD") && !isEditMode) {
         initialBalance = 0;
       }
 
@@ -118,6 +125,7 @@ export function AssetFormSheet({
         interestRate: data.interestRate
           ? Number(data.interestRate) || 0
           : undefined,
+        goldGram: data.type === "GOLD" ? initialGoldGram : undefined,
         isActive: true,
       };
 
@@ -192,6 +200,8 @@ export function AssetFormSheet({
     if (isSubmitting) return "처리 중...";
     if (!isEditMode && step === 1 && currentType === "STOCK")
       return "다음 (보유 종목 입력)";
+    if (!isEditMode && step === 1 && currentType === "GOLD")
+      return "다음 (보유 gram 입력)";
     if (!isEditMode) return "추가하기";
     if (isDirty) return "저장하기";
     return "닫기";
@@ -237,7 +247,11 @@ export function AssetFormSheet({
                         key={option.value}
                         onClick={() => {
                           field.onChange(option.value);
-                          if (option.value === "STOCK" && !isEditMode) {
+                          if (
+                            (option.value === "STOCK" ||
+                              option.value === "GOLD") &&
+                            !isEditMode
+                          ) {
                             setValue("balance", "0", { shouldDirty: true });
                           }
                         }}
@@ -278,7 +292,10 @@ export function AssetFormSheet({
                       }
                       placeholder="0"
                       className="text-right pr-8"
-                      disabled={currentType === "STOCK" && !isEditMode}
+                      disabled={
+                        (currentType === "STOCK" || currentType === "GOLD") &&
+                        !isEditMode
+                      }
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                       원
@@ -289,6 +306,12 @@ export function AssetFormSheet({
               {currentType === "STOCK" && !isEditMode && (
                 <p className="text-xs text-muted-foreground">
                   주식 자산은 다음 단계에서 종목을 추가하면 잔고가 자동
+                  계산됩니다.
+                </p>
+              )}
+              {currentType === "GOLD" && !isEditMode && (
+                <p className="text-xs text-muted-foreground">
+                  금 자산은 다음 단계에서 보유 gram을 입력하면 평가금액이 자동
                   계산됩니다.
                 </p>
               )}
@@ -345,16 +368,68 @@ export function AssetFormSheet({
 
         {step === 2 && (
           <div className="space-y-5">
-            <div className="text-sm text-muted-foreground mb-4">
-              [선택] 현재 보유 중인 종목이 있다면 등록해주세요. <br />
-              (건너뛰기를 누르면 잔액이 0원인 빈 계좌가 생성됩니다.)
-            </div>
+            {currentType === "STOCK" && (
+              <>
+                <div className="text-sm text-muted-foreground mb-4">
+                  [선택] 현재 보유 중인 종목이 있다면 등록해주세요. <br />
+                  (건너뛰기를 누르면 잔액이 0원인 빈 계좌가 생성됩니다.)
+                </div>
 
-            <StockHoldingInputList
-              control={control}
-              watch={watch}
-              setValue={setValue}
-            />
+                <StockHoldingInputList
+                  control={control}
+                  watch={watch}
+                  setValue={setValue}
+                />
+              </>
+            )}
+
+            {currentType === "GOLD" && (
+              <>
+                <div className="text-sm text-muted-foreground mb-4">
+                  [선택] 현재 보유 중인 금 수량(gram)을 입력해주세요. <br />
+                  (건너뛰기를 누르면 보유량 0g으로 생성됩니다.)
+                </div>
+
+                <div className="space-y-2">
+                  <Label>보유 gram</Label>
+                  <Controller
+                    name="goldGram"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/,/g, "");
+                            if (/^\d*\.?\d{0,6}$/.test(raw)) {
+                              field.onChange(raw);
+                            }
+                          }}
+                          placeholder="예: 3.75"
+                          className="text-right pr-10"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          g
+                        </span>
+                      </div>
+                    )}
+                  />
+                  {errors.goldGram && (
+                    <p className="text-xs text-destructive">
+                      {errors.goldGram.message}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {currentType !== "STOCK" && currentType !== "GOLD" && (
+              <div className="text-sm text-muted-foreground">
+                추가 입력 항목이 없습니다.
+              </div>
+            )}
           </div>
         )}
 
@@ -371,16 +446,18 @@ export function AssetFormSheet({
               이전
             </Button>
           )}
-          {step === 1 && currentType === "STOCK" && !isEditMode ? (
+          {step === 1 &&
+          (currentType === "STOCK" || currentType === "GOLD") &&
+          !isEditMode ? (
             <Button
               type="button"
               onClick={handleNextStep}
               className="w-full"
               size="lg"
             >
-              다음 (보유 종목 입력)
+              {getButtonText()}
             </Button>
-          ) : step === 2 ? (
+          ) : step === 2 && currentType === "STOCK" ? (
             <>
               <Button
                 type="button"
@@ -404,6 +481,29 @@ export function AssetFormSheet({
                 }
               >
                 {getButtonText()}
+              </Button>
+            </>
+          ) : step === 2 && currentType === "GOLD" ? (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSubmit((data) => {
+                  return onSubmit({ ...data, goldGram: "0" });
+                })}
+                className="flex-1"
+                size="lg"
+                disabled={isSubmitting}
+              >
+                건너뛰기
+              </Button>
+              <Button
+                onClick={handleSubmit(onSubmit)}
+                className="flex-1"
+                size="lg"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "처리 중..." : "추가하기"}
               </Button>
             </>
           ) : (
