@@ -17,6 +17,9 @@ import { z } from "zod";
 import { getBalanceOperation } from "@/lib/utils/asset-transaction";
 import { syncAssetBalance as syncStockBalance } from "./stocks";
 
+const GOLD_ASSET_TX_BLOCK_ERROR =
+  "GOLD 자산은 일반 입출금/이체를 지원하지 않습니다. 금 매수/매도 기능을 이용해주세요.";
+
 /**
  * syncStockBalance를 안전하게 호출하는 헬퍼 팩토리.
  * 핵심 DB 쓰기가 이미 커밋된 뒤 sync 실패로 success:false가 되는 것을 방지.
@@ -59,6 +62,12 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
       if (!asset[0]) {
         return { success: false, error: "자산이 존재하지 않습니다." };
       }
+      if (asset[0].type === "GOLD") {
+        return {
+          success: false,
+          error: GOLD_ASSET_TX_BLOCK_ERROR,
+        };
+      }
 
       // TRANSFER인 경우 대상 자산 소유권도 확인 (type 포함)
       let toAsset: { id: number; type: string } | undefined;
@@ -78,6 +87,12 @@ export async function createAssetTransaction(data: AssetTransactionInput) {
           return {
             success: false,
             error: "이체 대상 자산이 존재하지 않습니다.",
+          };
+        }
+        if (found.type === "GOLD") {
+          return {
+            success: false,
+            error: GOLD_ASSET_TX_BLOCK_ERROR,
           };
         }
         toAsset = found;
@@ -406,6 +421,17 @@ export async function updateAssetTransaction(
         ? assetTypeMap.get(newToAssetId)
         : undefined;
 
+      if (
+        [existingFromType, existingToType, newFromType, newToType].some(
+          (type) => type === "GOLD",
+        )
+      ) {
+        return {
+          success: false,
+          error: GOLD_ASSET_TX_BLOCK_ERROR,
+        };
+      }
+
       const existingOp = getBalanceOperation(existing[0].type);
       const reverseOp = existingOp === "add" ? "subtract" : "add";
       const newOp = getBalanceOperation(newType);
@@ -682,6 +708,13 @@ export async function deleteAssetTransaction(id: number) {
       const existingToType = existing[0].toAssetId
         ? deleteAssetTypeMap.get(existing[0].toAssetId)
         : undefined;
+
+      if ([existingFromType, existingToType].some((type) => type === "GOLD")) {
+        return {
+          success: false,
+          error: GOLD_ASSET_TX_BLOCK_ERROR,
+        };
+      }
 
       const existingOp = getBalanceOperation(existing[0].type);
       const reverseOp = existingOp === "add" ? "subtract" : "add";

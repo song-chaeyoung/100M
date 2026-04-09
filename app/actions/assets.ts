@@ -7,6 +7,7 @@ import { eq, and, not } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { assetSchema, type AssetInput } from "@/lib/validations/asset";
 import { z } from "zod";
+import { syncGoldAssetBalance } from "./gold";
 
 /**
  * 자산 계좌 생성
@@ -22,13 +23,24 @@ export async function createAsset(data: AssetInput) {
         };
       }
 
+      const initialBalance =
+        parsed.data.type === "GOLD" ? 0 : parsed.data.balance;
+
       const [result] = await db
         .insert(assets)
         .values({
           userId,
           name: parsed.data.name,
           type: parsed.data.type,
-          balance: parsed.data.balance.toString(),
+          balance: initialBalance.toString(),
+          goldGram:
+            parsed.data.type === "GOLD"
+              ? (parsed.data.goldGram ?? 0).toFixed(6)
+              : "0",
+          goldAvgBuyPrice:
+            parsed.data.type === "GOLD"
+              ? (parsed.data.goldAvgBuyPrice ?? 0).toFixed(2)
+              : "0",
           institution: parsed.data.institution || null,
           accountNumber: parsed.data.accountNumber || null,
           interestRate: parsed.data.interestRate?.toString() || null,
@@ -37,6 +49,14 @@ export async function createAsset(data: AssetInput) {
           isActive: parsed.data.isActive,
         })
         .returning();
+
+      if (parsed.data.type === "GOLD") {
+        try {
+          await syncGoldAssetBalance(result.id, userId);
+        } catch (syncError) {
+          console.error("[assets] GOLD 잔액 동기화 실패", syncError);
+        }
+      }
 
       revalidatePath("/");
 
@@ -61,6 +81,8 @@ export async function getAssets() {
           type: assets.type,
           balance: assets.balance,
           cashBalance: assets.cashBalance,
+          goldGram: assets.goldGram,
+          goldAvgBuyPrice: assets.goldAvgBuyPrice,
           institution: assets.institution,
           accountNumber: assets.accountNumber,
           interestRate: assets.interestRate,
@@ -95,6 +117,8 @@ export async function getAssetById(id: number) {
           type: assets.type,
           balance: assets.balance,
           cashBalance: assets.cashBalance,
+          goldGram: assets.goldGram,
+          goldAvgBuyPrice: assets.goldAvgBuyPrice,
           institution: assets.institution,
           accountNumber: assets.accountNumber,
           interestRate: assets.interestRate,
@@ -146,12 +170,20 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
         };
       }
 
+      const nextType = parsed.data.type ?? existing[0].type;
+
       const updateData: Partial<typeof assets.$inferInsert> = {
         updatedAt: new Date(),
         ...(parsed.data.name !== undefined && { name: parsed.data.name }),
         ...(parsed.data.type !== undefined && { type: parsed.data.type }),
         ...(parsed.data.balance !== undefined && {
           balance: parsed.data.balance.toString(),
+        }),
+        ...(parsed.data.goldGram !== undefined && {
+          goldGram: parsed.data.goldGram.toFixed(6),
+        }),
+        ...(parsed.data.goldAvgBuyPrice !== undefined && {
+          goldAvgBuyPrice: parsed.data.goldAvgBuyPrice.toFixed(2),
         }),
         ...(parsed.data.institution !== undefined && {
           institution: parsed.data.institution || null,
@@ -178,6 +210,14 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
         .set(updateData)
         .where(eq(assets.id, id))
         .returning();
+
+      if (nextType === "GOLD") {
+        try {
+          await syncGoldAssetBalance(id, userId);
+        } catch (syncError) {
+          console.error("[assets] GOLD 잔액 동기화 실패", syncError);
+        }
+      }
 
       revalidatePath("/");
 
