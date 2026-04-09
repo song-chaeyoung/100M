@@ -39,6 +39,7 @@ export const assetTypeEnum = pgEnum("asset_type", [
   "DEPOSIT", // 적금
   "CHECKING", // 입출금통장
   "STOCK", // 주식
+  "GOLD", // 금
   "FUND", // 펀드
   "CRYPTO", // 암호화폐
   "REAL_ESTATE", // 부동산
@@ -60,6 +61,9 @@ export const categoryTypeEnum = pgEnum("category_type", [
   "EXPENSE",
   "SAVING",
 ]);
+
+// 금 거래 타입
+export const goldTradeTypeEnum = pgEnum("gold_trade_type", ["BUY", "SELL"]);
 
 // -------------------------------------------------------------------
 // 2. Auth Tables
@@ -302,6 +306,16 @@ export const assets = pgTable(
       .notNull()
       .default("0"),
 
+    // 금 보유 gram (GOLD 타입에서만 사용)
+    goldGram: decimal("gold_gram", { precision: 12, scale: 6 })
+      .notNull()
+      .default("0"),
+
+    // 금 평균 매입 단가 (원/g)
+    goldAvgBuyPrice: decimal("gold_avg_buy_price", { precision: 16, scale: 2 })
+      .notNull()
+      .default("0"),
+
     institution: text("institution"), // 금융기관명
     accountNumber: text("account_number"), // 계좌번호
 
@@ -408,6 +422,58 @@ export const fixedSavings = pgTable(
   }),
 );
 
+// 금 시세 캐시 (일자별 1건)
+export const goldPrices = pgTable(
+  "gold_price",
+  {
+    id: serial("id").primaryKey(),
+    pricePerGram: decimal("price_per_gram", { precision: 16, scale: 2 })
+      .notNull(),
+    priceDate: date("price_date", { mode: "string" }).notNull(),
+    source: text("source").notNull().default("KRX_OPEN_API"),
+    rawPayload: text("raw_payload"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    priceDateUniqueIdx: uniqueIndex("gold_price_date_idx").on(t.priceDate),
+    updatedAtIdx: index("gold_price_updated_at_idx").on(t.updatedAt),
+  }),
+);
+
+// 금 거래 내역
+export const goldTrades = pgTable(
+  "gold_trade",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: integer("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    type: goldTradeTypeEnum("type").notNull(), // BUY, SELL
+    gram: decimal("gram", { precision: 12, scale: 6 }).notNull(),
+    pricePerGram: decimal("price_per_gram", { precision: 16, scale: 2 })
+      .notNull(),
+    amountKrw: decimal("amount_krw", { precision: 16, scale: 0 }).notNull(),
+    realizedProfit: decimal("realized_profit", { precision: 16, scale: 0 }),
+    tradeDate: date("trade_date", { mode: "string" }).notNull(),
+    memo: text("memo"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    userDateIdx: index("gold_trade_user_date_idx").on(t.userId, t.tradeDate),
+    assetDateIdx: index("gold_trade_asset_date_idx").on(t.assetId, t.tradeDate),
+    userAssetTypeIdx: index("gold_trade_user_asset_type_idx").on(
+      t.userId,
+      t.assetId,
+      t.type,
+    ),
+  }),
+);
+
 // -------------------------------------------------------------------
 // 4. Relations
 // -------------------------------------------------------------------
@@ -422,6 +488,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   assets: many(assets),
   assetTransactions: many(assetTransactions),
   fixedSavings: many(fixedSavings),
+  goldTrades: many(goldTrades),
   stockHoldings: many(stockHoldings),
 }));
 
@@ -499,6 +566,7 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
     relationName: "asset_transfers_to",
   }),
   fixedSavings: many(fixedSavings),
+  goldTrades: many(goldTrades),
   stockHoldings: many(stockHoldings),
 }));
 
@@ -542,6 +610,19 @@ export const fixedSavingsRelations = relations(
   }),
 );
 
+export const goldPricesRelations = relations(goldPrices, () => ({}));
+
+export const goldTradesRelations = relations(goldTrades, ({ one }) => ({
+  user: one(users, {
+    fields: [goldTrades.userId],
+    references: [users.id],
+  }),
+  asset: one(assets, {
+    fields: [goldTrades.assetId],
+    references: [assets.id],
+  }),
+}));
+
 // -------------------------------------------------------------------
 // 5. Type Exports
 // -------------------------------------------------------------------
@@ -554,6 +635,7 @@ export type FixedExpenseType = (typeof fixedExpenseTypeEnum.enumValues)[number];
 export type AssetType = (typeof assetTypeEnum.enumValues)[number];
 export type AssetTransactionType =
   (typeof assetTransactionTypeEnum.enumValues)[number];
+export type GoldTradeType = (typeof goldTradeTypeEnum.enumValues)[number];
 
 // Table Types
 export type User = typeof users.$inferSelect;
@@ -579,6 +661,12 @@ export type NewAssetTransaction = typeof assetTransactions.$inferInsert;
 
 export type FixedSaving = typeof fixedSavings.$inferSelect;
 export type NewFixedSaving = typeof fixedSavings.$inferInsert;
+
+export type GoldPrice = typeof goldPrices.$inferSelect;
+export type NewGoldPrice = typeof goldPrices.$inferInsert;
+
+export type GoldTrade = typeof goldTrades.$inferSelect;
+export type NewGoldTrade = typeof goldTrades.$inferInsert;
 
 // -------------------------------------------------------------------
 // 6. Stock Tables

@@ -71,6 +71,13 @@
       "when": 1774500298688,
       "tag": "0009_slimy_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775632340925,
+      "tag": "0010_absurd_the_anarchist",
+      "breakpoints": true
     }
   ]
 }
