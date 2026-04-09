@@ -164,6 +164,26 @@ describe("createAssetTransaction", () => {
     expect(result.error).toBe("자산이 존재하지 않습니다.");
   });
 
+  it("GOLD 자산은 일반 입출금 생성을 차단한다", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
+    mockDb.limit.mockResolvedValueOnce([
+      { id: 1, userId: "user-1", type: "GOLD" },
+    ]);
+
+    const result = await createAssetTransaction({
+      assetId: 1,
+      type: "DEPOSIT",
+      amount: 100000,
+      date: "2025-06-15",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(
+      "GOLD 자산은 일반 입출금/이체를 지원하지 않습니다. 금 매수/매도 기능을 이용해주세요.",
+    );
+  });
+
   it("유효하지 않은 데이터 → validation 에러 반환", async () => {
     mockAuth.mockResolvedValue({ user: { id: "user-1" } });
 
@@ -199,6 +219,27 @@ describe("createAssetTransaction", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("이체 대상 자산이 존재하지 않습니다.");
+  });
+
+  it("TRANSFER: 대상이 GOLD 자산이면 실패", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
+    mockDb.limit
+      .mockResolvedValueOnce([{ id: 1, userId: "user-1", type: "CHECKING" }])
+      .mockResolvedValueOnce([{ id: 2, userId: "user-1", type: "GOLD" }]);
+
+    const result = await createAssetTransaction({
+      assetId: 1,
+      type: "TRANSFER",
+      amount: 50000,
+      date: "2025-06-15",
+      toAssetId: 2,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(
+      "GOLD 자산은 일반 입출금/이체를 지원하지 않습니다. 금 매수/매도 기능을 이용해주세요.",
+    );
   });
 
   it("TRANSFER: 양쪽 자산 모두 존재하면 성공", async () => {
@@ -318,6 +359,35 @@ describe("updateAssetTransaction", () => {
       type: "DEPOSIT",
     });
   });
+
+  it("GOLD 관련 거래 수정은 차단한다", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
+    mockDb.where
+      .mockReturnValueOnce(mockDb)
+      .mockResolvedValueOnce([{ id: 1, type: "GOLD" }]);
+
+    mockDb.limit.mockResolvedValueOnce([
+      {
+        id: 1,
+        userId: "user-1",
+        assetId: 1,
+        type: "DEPOSIT",
+        amount: "100000",
+        isFixed: false,
+        toAssetId: null,
+      },
+    ]);
+
+    const result = await updateAssetTransaction(1, {
+      amount: 200000,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(
+      "GOLD 자산은 일반 입출금/이체를 지원하지 않습니다. 금 매수/매도 기능을 이용해주세요.",
+    );
+  });
 });
 
 // ============================================================
@@ -388,5 +458,32 @@ describe("deleteAssetTransaction", () => {
     const result = await deleteAssetTransaction(1);
 
     expect(result.success).toBe(true);
+  });
+
+  it("GOLD 관련 거래 삭제는 차단한다", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } });
+
+    mockDb.where
+      .mockReturnValueOnce(mockDb)
+      .mockResolvedValueOnce([{ id: 1, type: "GOLD" }]);
+
+    mockDb.limit.mockResolvedValueOnce([
+      {
+        id: 1,
+        userId: "user-1",
+        assetId: 1,
+        type: "DEPOSIT",
+        amount: "100000",
+        isFixed: false,
+        toAssetId: null,
+      },
+    ]);
+
+    const result = await deleteAssetTransaction(1);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(
+      "GOLD 자산은 일반 입출금/이체를 지원하지 않습니다. 금 매수/매도 기능을 이용해주세요.",
+    );
   });
 });
