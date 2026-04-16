@@ -216,58 +216,59 @@ export async function createGoldBuy(data: GoldBuyInput) {
         parsed.data.memo?.trim() || `금 매수 ${buyGram.toFixed(6)}g`;
       const investCategoryId = await getInvestmentCategoryId();
 
-      const trade = await db.transaction(async (tx) => {
-        const [createdTrade] = await tx
-          .insert(goldTrades)
-          .values({
-            userId,
-            assetId: parsed.data.assetId,
-            type: "BUY",
-            gram: formatGram(buyGram),
-            pricePerGram: formatPrice(buyPricePerGram),
-            amountKrw: amountKrw.toString(),
-            realizedProfit: null,
-            tradeDate: parsed.data.tradeDate,
-            memo: parsed.data.memo ?? null,
-          })
-          .returning();
-
-        const [assetTx] = await tx
-          .insert(assetTransactions)
-          .values({
-            userId,
-            assetId: parsed.data.assetId,
-            type: "WITHDRAW",
-            amount: amountKrw.toString(),
-            date: parsed.data.tradeDate,
-            memo,
-            isFixed: false,
-          })
-          .returning();
-
-        await tx.insert(transactions).values({
+      // neon-http 드라이버는 db.transaction()을 지원하지 않아 순차 실행합니다.
+      const [trade] = await db
+        .insert(goldTrades)
+        .values({
           userId,
-          type: "SAVING",
-          categoryId: investCategoryId,
+          assetId: parsed.data.assetId,
+          type: "BUY",
+          gram: formatGram(buyGram),
+          pricePerGram: formatPrice(buyPricePerGram),
+          amountKrw: amountKrw.toString(),
+          realizedProfit: null,
+          tradeDate: parsed.data.tradeDate,
+          memo: parsed.data.memo ?? null,
+        })
+        .returning();
+
+      const [assetTx] = await db
+        .insert(assetTransactions)
+        .values({
+          userId,
+          assetId: parsed.data.assetId,
+          type: "WITHDRAW",
           amount: amountKrw.toString(),
           date: parsed.data.tradeDate,
           memo,
-          method: null,
           isFixed: false,
-          linkedAssetTransactionId: assetTx.id,
-        });
+        })
+        .returning();
 
-        await tx
-          .update(assets)
-          .set({
-            goldGram: formatGram(newGram),
-            goldAvgBuyPrice: formatPrice(newAvgPrice),
-            updatedAt: new Date(),
-          })
-          .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)));
+      if (!trade || !assetTx) {
+        throw new Error("금 매수 연동 데이터 생성에 실패했습니다.");
+      }
 
-        return createdTrade;
+      await db.insert(transactions).values({
+        userId,
+        type: "SAVING",
+        categoryId: investCategoryId,
+        amount: amountKrw.toString(),
+        date: parsed.data.tradeDate,
+        memo,
+        method: null,
+        isFixed: false,
+        linkedAssetTransactionId: assetTx.id,
       });
+
+      await db
+        .update(assets)
+        .set({
+          goldGram: formatGram(newGram),
+          goldAvgBuyPrice: formatPrice(newAvgPrice),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)));
 
       try {
         await syncGoldAssetBalance(parsed.data.assetId, userId);
@@ -341,58 +342,59 @@ export async function createGoldSell(data: GoldSellInput) {
         parsed.data.memo?.trim() || `금 매도 ${sellGram.toFixed(6)}g`;
       const investCategoryId = await getInvestmentCategoryId();
 
-      const trade = await db.transaction(async (tx) => {
-        const [createdTrade] = await tx
-          .insert(goldTrades)
-          .values({
-            userId,
-            assetId: parsed.data.assetId,
-            type: "SELL",
-            gram: formatGram(sellGram),
-            pricePerGram: formatPrice(sellPricePerGram),
-            amountKrw: amountKrw.toString(),
-            realizedProfit: realizedProfit.toString(),
-            tradeDate: parsed.data.tradeDate,
-            memo: parsed.data.memo ?? null,
-          })
-          .returning();
-
-        const [assetTx] = await tx
-          .insert(assetTransactions)
-          .values({
-            userId,
-            assetId: parsed.data.assetId,
-            type: "DEPOSIT",
-            amount: amountKrw.toString(),
-            date: parsed.data.tradeDate,
-            memo,
-            isFixed: false,
-          })
-          .returning();
-
-        await tx.insert(transactions).values({
+      // neon-http 드라이버는 db.transaction()을 지원하지 않아 순차 실행합니다.
+      const [trade] = await db
+        .insert(goldTrades)
+        .values({
           userId,
-          type: "INCOME",
-          categoryId: investCategoryId,
+          assetId: parsed.data.assetId,
+          type: "SELL",
+          gram: formatGram(sellGram),
+          pricePerGram: formatPrice(sellPricePerGram),
+          amountKrw: amountKrw.toString(),
+          realizedProfit: realizedProfit.toString(),
+          tradeDate: parsed.data.tradeDate,
+          memo: parsed.data.memo ?? null,
+        })
+        .returning();
+
+      const [assetTx] = await db
+        .insert(assetTransactions)
+        .values({
+          userId,
+          assetId: parsed.data.assetId,
+          type: "DEPOSIT",
           amount: amountKrw.toString(),
           date: parsed.data.tradeDate,
           memo,
-          method: null,
           isFixed: false,
-          linkedAssetTransactionId: assetTx.id,
-        });
+        })
+        .returning();
 
-        await tx
-          .update(assets)
-          .set({
-            goldGram: formatGram(newGram),
-            goldAvgBuyPrice: formatPrice(newAvgPrice),
-            updatedAt: new Date(),
-          })
-          .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)));
+      if (!trade || !assetTx) {
+        throw new Error("금 매도 연동 데이터 생성에 실패했습니다.");
+      }
 
-        return createdTrade;
+      await db.insert(transactions).values({
+        userId,
+        type: "INCOME",
+        categoryId: investCategoryId,
+        amount: amountKrw.toString(),
+        date: parsed.data.tradeDate,
+        memo,
+        method: null,
+        isFixed: false,
+        linkedAssetTransactionId: assetTx.id,
       });
+
+      await db
+        .update(assets)
+        .set({
+          goldGram: formatGram(newGram),
+          goldAvgBuyPrice: formatPrice(newAvgPrice),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(assets.id, parsed.data.assetId), eq(assets.userId, userId)));
 
       try {
         await syncGoldAssetBalance(parsed.data.assetId, userId);

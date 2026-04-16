@@ -23,8 +23,8 @@ export async function createAsset(data: AssetInput) {
         };
       }
 
-      const initialBalance =
-        parsed.data.type === "GOLD" ? 0 : parsed.data.balance;
+      const isGoldAsset = parsed.data.type === "GOLD";
+      const initialBalance = isGoldAsset ? 0 : parsed.data.balance;
 
       const [result] = await db
         .insert(assets)
@@ -33,14 +33,8 @@ export async function createAsset(data: AssetInput) {
           name: parsed.data.name,
           type: parsed.data.type,
           balance: initialBalance.toString(),
-          goldGram:
-            parsed.data.type === "GOLD"
-              ? (parsed.data.goldGram ?? 0).toFixed(6)
-              : "0",
-          goldAvgBuyPrice:
-            parsed.data.type === "GOLD"
-              ? (parsed.data.goldAvgBuyPrice ?? 0).toFixed(2)
-              : "0",
+          goldGram: isGoldAsset ? "0.000000" : "0",
+          goldAvgBuyPrice: isGoldAsset ? "0.00" : "0",
           institution: parsed.data.institution || null,
           accountNumber: parsed.data.accountNumber || null,
           interestRate: parsed.data.interestRate?.toString() || null,
@@ -50,7 +44,7 @@ export async function createAsset(data: AssetInput) {
         })
         .returning();
 
-      if (parsed.data.type === "GOLD") {
+      if (isGoldAsset) {
         try {
           await syncGoldAssetBalance(result.id, userId);
         } catch (syncError) {
@@ -171,18 +165,23 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       }
 
       const nextType = parsed.data.type ?? existing[0].type;
+      const hasGoldInTransition =
+        existing[0].type === "GOLD" || nextType === "GOLD";
 
       const updateData: Partial<typeof assets.$inferInsert> = {
         updatedAt: new Date(),
         ...(parsed.data.name !== undefined && { name: parsed.data.name }),
         ...(parsed.data.type !== undefined && { type: parsed.data.type }),
-        ...(parsed.data.balance !== undefined && {
+        ...(!hasGoldInTransition &&
+          parsed.data.balance !== undefined && {
           balance: parsed.data.balance.toString(),
         }),
-        ...(parsed.data.goldGram !== undefined && {
+        ...(!hasGoldInTransition &&
+          parsed.data.goldGram !== undefined && {
           goldGram: parsed.data.goldGram.toFixed(6),
         }),
-        ...(parsed.data.goldAvgBuyPrice !== undefined && {
+        ...(!hasGoldInTransition &&
+          parsed.data.goldAvgBuyPrice !== undefined && {
           goldAvgBuyPrice: parsed.data.goldAvgBuyPrice.toFixed(2),
         }),
         ...(parsed.data.institution !== undefined && {
@@ -202,6 +201,11 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
         }),
         ...(parsed.data.isActive !== undefined && {
           isActive: parsed.data.isActive,
+        }),
+        ...(nextType === "GOLD" && {
+          balance: "0",
+          goldGram: "0.000000",
+          goldAvgBuyPrice: "0.00",
         }),
       };
 
