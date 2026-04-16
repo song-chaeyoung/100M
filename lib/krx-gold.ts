@@ -52,8 +52,18 @@ interface CandidatePrice {
   matchedKey: string;
 }
 
+function getKSTDate(offsetDays: number = 0): string {
+  const kstDate = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  kstDate.setUTCDate(kstDate.getUTCDate() + offsetDays);
+  return kstDate.toISOString().split("T")[0];
+}
+
 function getTodayKST(): string {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0];
+  return getKSTDate(0);
+}
+
+function getYesterdayKST(): string {
+  return getKSTDate(-1);
 }
 
 function normalizeKey(input: string): string {
@@ -148,11 +158,15 @@ function collectRecords(value: unknown): Record<string, unknown>[] {
   const record = asRecord(value);
   if (!record) return [];
 
-  const children = Object.values(record).flatMap((item) => collectRecords(item));
+  const children = Object.values(record).flatMap((item) =>
+    collectRecords(item),
+  );
   return [record, ...children];
 }
 
-function buildCandidate(record: Record<string, unknown>): CandidatePrice | null {
+function buildCandidate(
+  record: Record<string, unknown>,
+): CandidatePrice | null {
   const closePrice = findByKeys(record, CLOSE_PRICE_KEYS);
   const currentPrice = findByKeys(record, CURRENT_PRICE_KEYS);
 
@@ -230,7 +244,7 @@ export async function fetchKRXGoldPrice(): Promise<FetchKRXGoldPriceResult> {
     throw new Error("KRX_OPENAPI_AUTH_KEY 환경변수가 설정되지 않았습니다.");
   }
 
-  const basDd = getTodayKST().replace(/-/g, "");
+  const basDd = getYesterdayKST().replace(/-/g, "");
 
   const response = await fetch(apiUrl, {
     method: "POST",
