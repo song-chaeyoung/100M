@@ -58,4 +58,12 @@ describe("parseKRXGoldPriceResponse", () => {
 
     expect(() => parseKRXGoldPriceResponse(payload)).toThrow();
   });
+
+  it("유사 키(priceDate)만 있으면 예외를 던진다", () => {
+    const payload = {
+      output: [{ date: "2026-04-08", priceDate: "20260408" }],
+    };
+
+    expect(() => parseKRXGoldPriceResponse(payload)).toThrow();
+  });
 });

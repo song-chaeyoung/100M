@@ -94,7 +94,7 @@ describe("assets actions - GOLD guards", () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith("/");
   });
 
-  it("updateAsset(existing GOLD) ignores direct balance/gold edits and runs sync", async () => {
+  it("updateAsset(existing GOLD) does not zero out holdings on metadata edit", async () => {
     mockDb.limit.mockResolvedValueOnce([
       {
         id: 1,
@@ -115,9 +115,9 @@ describe("assets actions - GOLD guards", () => {
     expect(mockDb.set).toHaveBeenCalledTimes(1);
     const updatePayload = mockDb.set.mock.calls[0][0];
     expect(updatePayload.name).toBe("gold-account-updated");
-    expect(updatePayload.balance).toBe("0");
-    expect(updatePayload.goldGram).toBe("0.000000");
-    expect(updatePayload.goldAvgBuyPrice).toBe("0.00");
+    expect(updatePayload.balance).toBeUndefined();
+    expect(updatePayload.goldGram).toBeUndefined();
+    expect(updatePayload.goldAvgBuyPrice).toBeUndefined();
     expect(mockSyncGoldAssetBalance).toHaveBeenCalledWith(1, "user-1");
   });
 

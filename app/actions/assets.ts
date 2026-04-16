@@ -165,6 +165,8 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       }
 
       const nextType = parsed.data.type ?? existing[0].type;
+      const isToGoldTransition =
+        existing[0].type !== "GOLD" && nextType === "GOLD";
       const hasGoldInTransition =
         existing[0].type === "GOLD" || nextType === "GOLD";
 
@@ -202,7 +204,7 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
         ...(parsed.data.isActive !== undefined && {
           isActive: parsed.data.isActive,
         }),
-        ...(nextType === "GOLD" && {
+        ...(isToGoldTransition && {
           balance: "0",
           goldGram: "0.000000",
           goldAvgBuyPrice: "0.00",

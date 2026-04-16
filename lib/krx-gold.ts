@@ -139,9 +139,7 @@ function findByKeys(
   }));
 
   for (const target of keys.map(normalizeKey)) {
-    const hit = normalized.find(({ normalizedKey }) =>
-      normalizedKey.includes(target),
-    );
+    const hit = normalized.find(({ normalizedKey }) => normalizedKey === target);
     if (hit) {
       return { key: hit.originalKey, value: hit.value };
     }
