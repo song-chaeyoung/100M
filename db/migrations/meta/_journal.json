@@ -71,6 +71,27 @@
       "when": 1774500298688,
       "tag": "0009_slimy_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775632340925,
+      "tag": "0010_absurd_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776330600000,
+      "tag": "0011_sturdy_nitro",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776387175695,
+      "tag": "0012_clean_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

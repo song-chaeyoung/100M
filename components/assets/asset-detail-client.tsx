@@ -18,6 +18,11 @@ import type {
   StockPriceResponse,
 } from "@/lib/validations/stock";
 import { StockHoldingsList } from "@/components/stocks/stock-holdings-list";
+import type {
+  GoldPriceSnapshot,
+  GoldTradeResponse,
+} from "@/lib/validations/gold";
+import { GoldAssetPanel } from "@/components/gold/gold-asset-panel";
 
 interface AssetDetailClientProps {
   asset: Asset | null;
@@ -26,6 +31,9 @@ interface AssetDetailClientProps {
   stockHoldings?: StockHoldingResponse[];
   stockPrices?: StockPriceResponse[];
   cashBalance?: number;
+  goldTrades?: GoldTradeResponse[];
+  goldPriceSnapshot?: GoldPriceSnapshot | null;
+  goldRealizedProfitTotal?: number;
   errors?: (string | undefined)[];
 }
 
@@ -36,6 +44,9 @@ export function AssetDetailClient({
   stockHoldings = [],
   stockPrices = [],
   cashBalance = 0,
+  goldTrades = [],
+  goldPriceSnapshot = null,
+  goldRealizedProfitTotal = 0,
   errors,
 }: AssetDetailClientProps) {
   const [transactionSheet, setTransactionSheet] = useState<
@@ -135,6 +146,13 @@ export function AssetDetailClient({
             />
           </TabsContent>
         </Tabs>
+      ) : asset.type === "GOLD" ? (
+        <GoldAssetPanel
+          asset={asset}
+          trades={goldTrades}
+          priceSnapshot={goldPriceSnapshot}
+          realizedProfitTotal={goldRealizedProfitTotal}
+        />
       ) : (
         <AssetTransactionList
           transactions={transactions}
@@ -145,33 +163,37 @@ export function AssetDetailClient({
       )}
 
       {/* 플로팅 버튼 */}
-      <Button
-        onClick={handleAddTransaction}
-        className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg"
-        size="icon"
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
+      {asset.type !== "GOLD" && (
+        <>
+          <Button
+            onClick={handleAddTransaction}
+            className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg"
+            size="icon"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
 
-      {/* 거래 등록/수정 시트 */}
-      <AssetTransactionFormSheet
-        open={transactionSheet !== null}
-        onOpenChange={handleCloseForm}
-        assetId={asset.id}
-        allAssets={allAssets}
-        editingTransaction={
-          transactionSheet === "new" ? null : transactionSheet
-        }
-      />
+          {/* 거래 등록/수정 시트 */}
+          <AssetTransactionFormSheet
+            open={transactionSheet !== null}
+            onOpenChange={handleCloseForm}
+            assetId={asset.id}
+            allAssets={allAssets}
+            editingTransaction={
+              transactionSheet === "new" ? null : transactionSheet
+            }
+          />
 
-      {/* 삭제 확인 다이얼로그 */}
-      <DeleteConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-        onConfirm={handleConfirmDelete}
-        title="거래 삭제"
-        description="정말 이 거래를 삭제하시겠어요? 자산 잔액이 자동으로 조정됩니다."
-      />
+          {/* 삭제 확인 다이얼로그 */}
+          <DeleteConfirmDialog
+            open={!!deleteTarget}
+            onOpenChange={() => setDeleteTarget(null)}
+            onConfirm={handleConfirmDelete}
+            title="거래 삭제"
+            description="정말 이 거래를 삭제하시겠어요? 자산 잔액이 자동으로 조정됩니다."
+          />
+        </>
+      )}
 
       {/* 자산 수정 시트 */}
       <AssetFormSheet

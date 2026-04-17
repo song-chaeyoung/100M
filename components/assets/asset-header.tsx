@@ -6,28 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Asset } from "@/lib/validations/asset";
-
-const ASSET_TYPE_LABELS: Record<string, string> = {
-  SAVINGS: "예금",
-  DEPOSIT: "적금",
-  CHECKING: "입출금통장",
-  STOCK: "주식",
-  FUND: "펀드",
-  CRYPTO: "암호화폐",
-  REAL_ESTATE: "부동산",
-  OTHER: "기타",
-};
-
-const ASSET_TYPE_ICONS: Record<string, string> = {
-  SAVINGS: "🏦",
-  DEPOSIT: "💰",
-  CHECKING: "💳",
-  STOCK: "📈",
-  FUND: "📊",
-  CRYPTO: "🪙",
-  REAL_ESTATE: "🏠",
-  OTHER: "💼",
-};
+import { ASSET_TYPE_ICONS, ASSET_TYPE_LABELS } from "@/lib/const";
 
 interface AssetHeaderProps {
   asset: Asset;

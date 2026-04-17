@@ -6,17 +6,20 @@ export const assetTypeSchema = z.enum([
   "DEPOSIT",
   "CHECKING",
   "STOCK",
+  "GOLD",
   "FUND",
   "CRYPTO",
   "REAL_ESTATE",
   "OTHER",
 ]);
 
-// Input schema (for forms)
+// Input schema (for server actions)
 export const assetSchema = z.object({
-  name: z.string().min(1, "자산 이름을 입력하세요"),
+  name: z.string().min(1, "자산 이름을 입력해주세요"),
   type: assetTypeSchema,
   balance: z.number().min(0, "잔액은 0 이상이어야 합니다").default(0),
+  goldGram: z.number().min(0).optional(),
+  goldAvgBuyPrice: z.number().min(0).optional(),
   institution: z.string().optional(),
   accountNumber: z.string().optional(),
   interestRate: z.number().min(0).max(100).optional(),
@@ -32,6 +35,8 @@ export const assetResponseSchema = z.object({
   type: z.string(),
   balance: z.string(),
   cashBalance: z.string().default("0"),
+  goldGram: z.string().default("0"),
+  goldAvgBuyPrice: z.string().default("0"),
   institution: z.string().nullable(),
   accountNumber: z.string().nullable(),
   interestRate: z.string().nullable(),
@@ -51,24 +56,23 @@ export const assetMinimalSchema = z.object({
   color: z.string().nullable(),
 });
 
+// Form schema (for client form only)
 export const assetFormSchema = z.object({
-  name: z.string().min(1, "자산 이름을 입력하세요"),
-  type: z.enum(assetTypeSchema.options, { message: "자산 유형을 선택하세요" }),
+  name: z.string().min(1, "자산 이름을 입력해주세요"),
+  type: z.enum(assetTypeSchema.options, { message: "자산 유형을 선택해주세요" }),
   balance: z.string(),
   institution: z.string().optional(),
   accountNumber: z.string().optional(),
   interestRate: z.string().optional(),
-
-  // Stock specific fields (array for multiple initial stocks)
   stocks: z
     .array(
       z.object({
-        stockCode: z.string().min(1, "종목을 선택하세요"),
+        stockCode: z.string().min(1, "종목을 선택해주세요"),
         stockName: z.string(),
         country: z.string(),
         market: z.string(),
-        quantity: z.string().min(1, "수량을 입력하세요"),
-        avgPrice: z.string().min(1, "평단가를 입력하세요"),
+        quantity: z.string().min(1, "수량을 입력해주세요"),
+        avgPrice: z.string().min(1, "평단가를 입력해주세요"),
       }),
     )
     .optional(),
