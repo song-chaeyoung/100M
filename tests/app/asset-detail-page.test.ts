@@ -77,7 +77,7 @@ describe("AssetDetailPage", () => {
     });
   });
 
-  it("가격 응답 data가 null이어도 예외 없이 렌더링된다", async () => {
+  it("renders safely when gold price data is null", async () => {
     const pageModule = await import("@/app/(main)/assets/[assetId]/page");
 
     await expect(
