@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseKRXGoldPriceResponse } from "@/lib/krx-gold";
 
 describe("parseKRXGoldPriceResponse", () => {
-  it("ì¢…ê°€ í‚¤ë¥¼ ìš°ì„  íŒŒì‹±í•œë‹¤", () => {
+  it("Á¾°¡°¡ ÀÖÀ¸¸é Á¾°¡¸¦ ¿ì¼± ÆÄ½ÌÇÑ´Ù", () => {
     const payload = {
       output: [
         {
@@ -18,7 +18,7 @@ describe("parseKRXGoldPriceResponse", () => {
     expect(result.priceDate).toBe("2026-04-08");
   });
 
-  it("ë‹¨ìœ„ê°€ kgì´ë©´ gë¡œ í™˜ì‚°í•œë‹¤", () => {
+  it("´ÜÀ§°¡ kg¸é g·Î È¯»êÇÑ´Ù", () => {
     const payload = {
       response: {
         rows: [
@@ -37,7 +37,22 @@ describe("parseKRXGoldPriceResponse", () => {
     expect(result.isKgConverted).toBe(true);
   });
 
-  it("ì¢…ê°€ê°€ ì—†ìœ¼ë©´ í˜„ìž¬ê°€ë¡œ í´ë°±í•œë‹¤", () => {
+  it("´ÜÀ§ ÈùÆ®°¡ ¾øÀ¸¸é °í°¡¿©µµ kg º¯È¯ÇÏÁö ¾Ê´Â´Ù", () => {
+    const payload = {
+      output: [
+        {
+          date: "2026-04-08",
+          price: "140000000",
+        },
+      ],
+    };
+
+    const result = parseKRXGoldPriceResponse(payload);
+    expect(result.pricePerGram).toBe(140000000);
+    expect(result.isKgConverted).toBe(false);
+  });
+
+  it("Á¾°¡°¡ ¾øÀ¸¸é ÇöÀç°¡·Î ´ëÃ¼ÇÑ´Ù", () => {
     const payload = {
       output: [
         {
@@ -51,7 +66,7 @@ describe("parseKRXGoldPriceResponse", () => {
     expect(result.pricePerGram).toBe(146200);
   });
 
-  it("ê°€ê²© í•„ë“œê°€ ì—†ìœ¼ë©´ ì˜ˆì™¸ë¥¼ ë˜ì§„ë‹¤", () => {
+  it("°¡°Ý ÇÊµå°¡ ¾øÀ¸¸é ¿¹¿Ü¸¦ ´øÁø´Ù", () => {
     const payload = {
       output: [{ date: "2026-04-08", value: "N/A" }],
     };
@@ -59,7 +74,7 @@ describe("parseKRXGoldPriceResponse", () => {
     expect(() => parseKRXGoldPriceResponse(payload)).toThrow();
   });
 
-  it("ìœ ì‚¬ í‚¤(priceDate)ë§Œ ìžˆìœ¼ë©´ ì˜ˆì™¸ë¥¼ ë˜ì§„ë‹¤", () => {
+  it("À¯»ç Å°(priceDate)¸¸ ÀÖÀ¸¸é ¿¹¿Ü¸¦ ´øÁø´Ù", () => {
     const payload = {
       output: [{ date: "2026-04-08", priceDate: "20260408" }],
     };

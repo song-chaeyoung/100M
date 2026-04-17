@@ -35,6 +35,11 @@ vi.mock("@/db/schema", () => ({
     isActive: "isActive",
     updatedAt: "updatedAt",
   },
+  goldTrades: {
+    id: "id",
+    userId: "userId",
+    assetId: "assetId",
+  },
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -166,5 +171,33 @@ describe("assets actions - GOLD guards", () => {
     const updatePayload = mockDb.set.mock.calls[0][0];
     expect(updatePayload.type).toBe("CHECKING");
     expect(updatePayload.balance).toBe("555000");
+    expect(updatePayload.goldGram).toBe("0.000000");
+    expect(updatePayload.goldAvgBuyPrice).toBe("0.00");
+    expect(mockDb.limit).toHaveBeenCalledTimes(2);
+    expect(mockSyncGoldAssetBalance).not.toHaveBeenCalled();
+  });
+
+  it("updateAsset blocks GOLD -> non-GOLD when trade history exists", async () => {
+    mockDb.limit
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          userId: "user-1",
+          type: "GOLD",
+        },
+      ])
+      .mockResolvedValueOnce([{ id: 99 }]);
+
+    const result = await updateAsset(1, {
+      type: "CHECKING",
+      balance: 555000,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success && typeof result.error === "string") {
+      expect(result.error).toContain("금 거래 이력");
+    }
+    expect(mockDb.update).not.toHaveBeenCalled();
+    expect(mockSyncGoldAssetBalance).not.toHaveBeenCalled();
   });
 });

@@ -181,10 +181,7 @@ function buildCandidate(
   const unitFromField = getUnit(record);
   const keySuggestsKg = normalizeKey(picked.key).includes("kg");
 
-  const isKg =
-    unitFromField === "kg" ||
-    keySuggestsKg ||
-    (unitFromField === null && rawPrice >= 1_000_000);
+  const isKg = unitFromField === "kg" || keySuggestsKg;
 
   return {
     price: rawPrice,

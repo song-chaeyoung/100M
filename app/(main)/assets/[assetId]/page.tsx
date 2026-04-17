@@ -102,7 +102,11 @@ export default async function AssetDetailPage({
         .parse(tradesResult.value.data ?? []);
     }
 
-    if (priceResult.status === "fulfilled" && priceResult.value?.success) {
+    if (
+      priceResult.status === "fulfilled" &&
+      priceResult.value?.success &&
+      priceResult.value.data != null
+    ) {
       goldPriceSnapshot = goldPriceSnapshotSchema.parse(priceResult.value.data);
     }
 

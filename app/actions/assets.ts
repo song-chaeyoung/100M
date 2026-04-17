@@ -2,7 +2,7 @@
 
 import { withAuth } from "@/lib/with-auth";
 import { db } from "@/db";
-import { assets } from "@/db/schema";
+import { assets, goldTrades } from "@/db/schema";
 import { eq, and, not } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { assetSchema, type AssetInput } from "@/lib/validations/asset";
@@ -167,7 +167,26 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       const nextType = parsed.data.type ?? existing[0].type;
       const isToGoldTransition =
         existing[0].type !== "GOLD" && nextType === "GOLD";
+      const isFromGoldTransition =
+        existing[0].type === "GOLD" && nextType !== "GOLD";
       const isGoldTarget = nextType === "GOLD";
+
+      if (isFromGoldTransition) {
+        const existingGoldTrade = await db
+          .select({ id: goldTrades.id })
+          .from(goldTrades)
+          .where(
+            and(eq(goldTrades.assetId, id), eq(goldTrades.userId, userId)),
+          )
+          .limit(1);
+
+        if (existingGoldTrade.length > 0) {
+          return {
+            success: false,
+            error: "금 거래 이력이 있는 자산은 타입을 변경할 수 없습니다.",
+          };
+        }
+      }
 
       const updateData: Partial<typeof assets.$inferInsert> = {
         updatedAt: new Date(),
@@ -197,6 +216,10 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
         }),
         ...(isToGoldTransition && {
           balance: "0",
+          goldGram: "0.000000",
+          goldAvgBuyPrice: "0.00",
+        }),
+        ...(isFromGoldTransition && {
           goldGram: "0.000000",
           goldAvgBuyPrice: "0.00",
         }),

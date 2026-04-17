@@ -11,6 +11,7 @@ import {
   decimal,
   uniqueIndex,
   check,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import type { AdapterAccount } from "next-auth/adapters";
@@ -333,6 +334,7 @@ export const assets = pgTable(
   (t) => ({
     userIdx: index("asset_user_idx").on(t.userId),
     userActiveIdx: index("asset_user_active_idx").on(t.userId, t.isActive),
+    idUserUniqueIdx: uniqueIndex("asset_id_user_idx").on(t.id, t.userId),
     goldGramNonNegative: check(
       "asset_gold_gram_non_negative",
       sql`${t.goldGram} >= 0`,
@@ -458,9 +460,7 @@ export const goldTrades = pgTable(
     userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    assetId: integer("asset_id")
-      .notNull()
-      .references(() => assets.id, { onDelete: "cascade" }),
+    assetId: integer("asset_id").notNull(),
     type: goldTradeTypeEnum("type").notNull(), // BUY, SELL
     gram: decimal("gram", { precision: 12, scale: 6 }).notNull(),
     pricePerGram: decimal("price_per_gram", { precision: 16, scale: 2 })
@@ -480,6 +480,11 @@ export const goldTrades = pgTable(
       t.assetId,
       t.type,
     ),
+    assetUserFk: foreignKey({
+      name: "gold_trade_asset_user_fk",
+      columns: [t.assetId, t.userId],
+      foreignColumns: [assets.id, assets.userId],
+    }).onDelete("cascade"),
     gramPositive: check("gold_trade_gram_positive", sql`${t.gram} > 0`),
     pricePerGramPositive: check(
       "gold_trade_price_per_gram_positive",
