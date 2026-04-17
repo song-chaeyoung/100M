@@ -167,24 +167,15 @@ export async function updateAsset(id: number, data: Partial<AssetInput>) {
       const nextType = parsed.data.type ?? existing[0].type;
       const isToGoldTransition =
         existing[0].type !== "GOLD" && nextType === "GOLD";
-      const hasGoldInTransition =
-        existing[0].type === "GOLD" || nextType === "GOLD";
+      const isGoldTarget = nextType === "GOLD";
 
       const updateData: Partial<typeof assets.$inferInsert> = {
         updatedAt: new Date(),
         ...(parsed.data.name !== undefined && { name: parsed.data.name }),
         ...(parsed.data.type !== undefined && { type: parsed.data.type }),
-        ...(!hasGoldInTransition &&
+        ...(!isGoldTarget &&
           parsed.data.balance !== undefined && {
           balance: parsed.data.balance.toString(),
-        }),
-        ...(!hasGoldInTransition &&
-          parsed.data.goldGram !== undefined && {
-          goldGram: parsed.data.goldGram.toFixed(6),
-        }),
-        ...(!hasGoldInTransition &&
-          parsed.data.goldAvgBuyPrice !== undefined && {
-          goldAvgBuyPrice: parsed.data.goldAvgBuyPrice.toFixed(2),
         }),
         ...(parsed.data.institution !== undefined && {
           institution: parsed.data.institution || null,

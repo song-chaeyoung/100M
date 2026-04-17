@@ -10,6 +10,7 @@ import {
   date,
   decimal,
   uniqueIndex,
+  check,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import type { AdapterAccount } from "next-auth/adapters";
@@ -332,6 +333,14 @@ export const assets = pgTable(
   (t) => ({
     userIdx: index("asset_user_idx").on(t.userId),
     userActiveIdx: index("asset_user_active_idx").on(t.userId, t.isActive),
+    goldGramNonNegative: check(
+      "asset_gold_gram_non_negative",
+      sql`${t.goldGram} >= 0`,
+    ),
+    goldAvgBuyPriceNonNegative: check(
+      "asset_gold_avg_buy_price_non_negative",
+      sql`${t.goldAvgBuyPrice} >= 0`,
+    ),
   }),
 );
 
@@ -470,6 +479,15 @@ export const goldTrades = pgTable(
       t.userId,
       t.assetId,
       t.type,
+    ),
+    gramPositive: check("gold_trade_gram_positive", sql`${t.gram} > 0`),
+    pricePerGramPositive: check(
+      "gold_trade_price_per_gram_positive",
+      sql`${t.pricePerGram} > 0`,
+    ),
+    amountKrwPositive: check(
+      "gold_trade_amount_krw_positive",
+      sql`${t.amountKrw} > 0`,
     ),
   }),
 );

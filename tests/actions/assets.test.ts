@@ -146,4 +146,25 @@ describe("assets actions - GOLD guards", () => {
     expect(updatePayload.goldAvgBuyPrice).toBe("0.00");
     expect(mockSyncGoldAssetBalance).toHaveBeenCalledWith(1, "user-1");
   });
+
+  it("updateAsset(GOLD -> non-GOLD) applies provided balance", async () => {
+    mockDb.limit.mockResolvedValueOnce([
+      {
+        id: 1,
+        userId: "user-1",
+        type: "GOLD",
+      },
+    ]);
+    mockDb.returning.mockResolvedValueOnce([{ id: 1 }]);
+
+    const result = await updateAsset(1, {
+      type: "CHECKING",
+      balance: 555000,
+    });
+
+    expect(result.success).toBe(true);
+    const updatePayload = mockDb.set.mock.calls[0][0];
+    expect(updatePayload.type).toBe("CHECKING");
+    expect(updatePayload.balance).toBe("555000");
+  });
 });

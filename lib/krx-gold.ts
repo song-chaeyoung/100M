@@ -37,6 +37,7 @@ const DATE_KEYS = [
 ];
 
 const UNIT_KEYS = ["unit", "priceunit", "qtyunit", "price_unit", "단위"];
+const KRX_FETCH_TIMEOUT_MS = 10_000;
 
 export interface ParsedKRXGoldPrice {
   pricePerGram: number;
@@ -242,18 +243,34 @@ export async function fetchKRXGoldPrice(): Promise<FetchKRXGoldPriceResult> {
     throw new Error("KRX_OPENAPI_AUTH_KEY 환경변수가 설정되지 않았습니다.");
   }
 
-  const basDd = getYesterdayKST().replace(/-/g, "");
+  const fallbackDate = getYesterdayKST();
+  const basDd = fallbackDate.replace(/-/g, "");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, KRX_FETCH_TIMEOUT_MS);
 
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      AUTH_KEY: authKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ basDd }),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        AUTH_KEY: authKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ basDd }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("KRX API 요청 시간이 초과되었습니다.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -269,7 +286,7 @@ export async function fetchKRXGoldPrice(): Promise<FetchKRXGoldPriceResult> {
     throw new Error("KRX API 응답이 JSON 형식이 아닙니다.");
   }
 
-  const parsed = parseKRXGoldPriceResponse(parsedJson);
+  const parsed = parseKRXGoldPriceResponse(parsedJson, fallbackDate);
   return {
     ...parsed,
     rawPayload,

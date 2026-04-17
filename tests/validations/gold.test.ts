@@ -28,6 +28,17 @@ describe("goldTradeInputSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("유효하지 않은 달력 날짜는 실패한다", () => {
+    const result = goldTradeInputSchema.safeParse({
+      assetId: 1,
+      type: "BUY",
+      gram: 1,
+      pricePerGram: 145000,
+      tradeDate: "2026-02-31",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("goldBuyFormSchema", () => {

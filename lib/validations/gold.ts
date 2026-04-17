@@ -2,6 +2,23 @@ import { z } from "zod";
 
 export const goldTradeTypeSchema = z.enum(["BUY", "SELL"]);
 
+function isValidIsoDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day
+  );
+}
+
 export const goldTradeInputSchema = z.object({
   assetId: z.number().int().positive("자산 계좌를 선택하세요"),
   type: goldTradeTypeSchema,
@@ -15,7 +32,8 @@ export const goldTradeInputSchema = z.object({
     .max(9_999_999_999_999.99, "단가 값이 너무 큽니다"),
   tradeDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
+    .refine(isValidIsoDate, "유효한 날짜를 입력하세요"),
   memo: z.string().optional(),
 });
 
